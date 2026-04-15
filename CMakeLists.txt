@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.19)
 project(customGraphics LANGUAGES CXX)
 
+# MSVC 使用 UTF-8 编码
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 
 qt_standard_project_setup()
@@ -12,6 +17,16 @@ qt_add_executable(customGraphics
     graphicstestwidget.h
     graphicstestwidget.ui
     handlers/IInteractionHandler.h
+    handlers/SceneConfig.h
+    handlers/SceneConfig.cpp
+    handlers/BackgroundHandler.h
+    handlers/BackgroundHandler.cpp
+    handlers/RulerHandler.h
+    handlers/RulerHandler.cpp
+    handlers/DrawHandler.h
+    handlers/DrawHandler.cpp
+    handlers/DragDropHandler.h
+    handlers/DragDropHandler.cpp
     view/CustomGraphicsView.h
     view/CustomGraphicsView.cpp
     view/CustomGraphicsScene.h

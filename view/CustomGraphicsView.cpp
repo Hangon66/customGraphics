@@ -3,10 +3,13 @@
 #include "../handlers/ZoomHandler.h"
 #include "../handlers/PanHandler.h"
 #include "../handlers/RubberBandHandler.h"
+#include "../handlers/RulerHandler.h"
 
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <algorithm>
 
 CustomGraphicsView::CustomGraphicsView(QWidget *parent)
@@ -207,4 +210,33 @@ void CustomGraphicsView::keyReleaseEvent(QKeyEvent *event)
     }
 
     QGraphicsView::keyReleaseEvent(event);
+}
+
+void CustomGraphicsView::paintEvent(QPaintEvent *event)
+{
+    // 先调用基类的绘制事件处理场景内容
+    QGraphicsView::paintEvent(event);
+
+    // 遍历 Handler，调用支持绘制的 Handler
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        // 检查是否是 RulerHandler 并调用其 paint 方法
+        if (auto *rulerHandler = dynamic_cast<RulerHandler*>(handler)) {
+            QPainter painter(viewport());
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            rulerHandler->paint(&painter, this);
+        }
+    }
+}
+
+void CustomGraphicsView::scrollContentsBy(int dx, int dy)
+{
+    // 调用基类的滚动处理
+    QGraphicsView::scrollContentsBy(dx, dy);
+
+    // 强制更新 viewport 以重绘标尺
+    // 标尺需要根据新的滚动位置重新绘制
+    viewport()->update();
 }

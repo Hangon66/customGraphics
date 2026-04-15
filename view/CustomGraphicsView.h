@@ -4,6 +4,7 @@
 #include <QGraphicsView>
 #include <QList>
 
+class QPaintEvent;
 class IInteractionHandler;
 
 /**
@@ -169,6 +170,24 @@ protected:
      * @param event 键盘释放事件对象。
      */
     void keyReleaseEvent(QKeyEvent *event) override;
+
+    /**
+     * @brief 处理绘制事件，支持 RulerHandler 等需要在前台绘制的 Handler。
+     *
+     * 首先调用基类的绘制事件处理场景内容，然后遍历所有 Handler，
+     * 调用支持绘制接口的 Handler 进行前景绘制。
+     *
+     * @param event 绘制事件对象。
+     */
+    void paintEvent(QPaintEvent *event) override;
+
+    /**
+     * @brief 处理滚动事件，确保标尺等前景元素正确重绘。
+     *
+     * @param dx 水平滚动偏移量。
+     * @param dy 垂直滚动偏移量。
+     */
+    void scrollContentsBy(int dx, int dy) override;
 
 private:
     /**
