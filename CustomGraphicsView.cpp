@@ -1,0 +1,210 @@
+#include "CustomGraphicsView.h"
+#include "IInteractionHandler.h"
+#include "ZoomHandler.h"
+#include "PanHandler.h"
+#include "RubberBandHandler.h"
+
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QKeyEvent>
+#include <algorithm>
+
+CustomGraphicsView::CustomGraphicsView(QWidget *parent)
+    : QGraphicsView(parent)
+    , m_handlersDirty(false)
+    , m_activeMouseHandler(nullptr)
+{
+    setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+    setDragMode(QGraphicsView::NoDrag);
+    setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
+    setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
+}
+
+CustomGraphicsView *CustomGraphicsView::createDefaultView(QWidget *parent)
+{
+    auto *view = new CustomGraphicsView(parent);
+    view->addHandler(new ZoomHandler(100));
+    view->addHandler(new PanHandler(50));
+    view->addHandler(new RubberBandHandler(10));
+    return view;
+}
+
+void CustomGraphicsView::addHandler(IInteractionHandler *handler)
+{
+    if (!handler || m_handlers.contains(handler)) {
+        return;
+    }
+    m_handlers.append(handler);
+    m_handlersDirty = true;
+
+    // 如果 Handler 继承了 QObject 且无父对象，自动托管生命周期
+    auto *obj = dynamic_cast<QObject *>(handler);
+    if (obj && !obj->parent()) {
+        obj->setParent(this);
+    }
+}
+
+void CustomGraphicsView::removeHandler(IInteractionHandler *handler)
+{
+    m_handlers.removeOne(handler);
+    if (m_activeMouseHandler == handler) {
+        m_activeMouseHandler = nullptr;
+    }
+}
+
+IInteractionHandler *CustomGraphicsView::findHandler(const QString &name) const
+{
+    for (IInteractionHandler *handler : m_handlers) {
+        if (handler->handlerName() == name) {
+            return handler;
+        }
+    }
+    return nullptr;
+}
+
+QList<IInteractionHandler *> CustomGraphicsView::handlers() const
+{
+    return m_handlers;
+}
+
+void CustomGraphicsView::setHandlerEnabled(const QString &name, bool enabled)
+{
+    IInteractionHandler *handler = findHandler(name);
+    if (handler) {
+        handler->setEnabled(enabled);
+    }
+}
+
+void CustomGraphicsView::ensureHandlersSorted()
+{
+    if (m_handlersDirty) {
+        std::stable_sort(m_handlers.begin(), m_handlers.end(),
+                         [](const IInteractionHandler *a, const IInteractionHandler *b) {
+                             return a->priority() > b->priority();
+                         });
+        m_handlersDirty = false;
+    }
+}
+
+void CustomGraphicsView::mousePressEvent(QMouseEvent *event)
+{
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleMousePress(this, event)) {
+            m_activeMouseHandler = handler;
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::mousePressEvent(event);
+}
+
+void CustomGraphicsView::mouseMoveEvent(QMouseEvent *event)
+{
+    // 如果存在活跃处理器，优先发送给它
+    if (m_activeMouseHandler && m_activeMouseHandler->isEnabled()) {
+        if (m_activeMouseHandler->handleMouseMove(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled() || handler == m_activeMouseHandler) {
+            continue;
+        }
+        if (handler->handleMouseMove(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::mouseMoveEvent(event);
+}
+
+void CustomGraphicsView::mouseReleaseEvent(QMouseEvent *event)
+{
+    // 如果存在活跃处理器，将 release 事件发送给它并清除活跃状态
+    if (m_activeMouseHandler && m_activeMouseHandler->isEnabled()) {
+        IInteractionHandler *active = m_activeMouseHandler;
+        m_activeMouseHandler = nullptr;
+        if (active->handleMouseRelease(this, event)) {
+            event->accept();
+            return;
+        }
+    } else {
+        m_activeMouseHandler = nullptr;
+    }
+
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleMouseRelease(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::mouseReleaseEvent(event);
+}
+
+void CustomGraphicsView::wheelEvent(QWheelEvent *event)
+{
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleWheel(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::wheelEvent(event);
+}
+
+void CustomGraphicsView::keyPressEvent(QKeyEvent *event)
+{
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleKeyPress(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::keyPressEvent(event);
+}
+
+void CustomGraphicsView::keyReleaseEvent(QKeyEvent *event)
+{
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleKeyRelease(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::keyReleaseEvent(event);
+}
