@@ -1,8 +1,8 @@
 #include "CustomGraphicsView.h"
-#include "IInteractionHandler.h"
-#include "ZoomHandler.h"
-#include "PanHandler.h"
-#include "RubberBandHandler.h"
+#include "../handlers/IInteractionHandler.h"
+#include "../handlers/ZoomHandler.h"
+#include "../handlers/PanHandler.h"
+#include "../handlers/RubberBandHandler.h"
 
 #include <QMouseEvent>
 #include <QWheelEvent>

@@ -11,17 +11,17 @@ qt_add_executable(customGraphics
     graphicstestwidget.cpp
     graphicstestwidget.h
     graphicstestwidget.ui
-    IInteractionHandler.h
-    CustomGraphicsView.h
-    CustomGraphicsView.cpp
-    CustomGraphicsScene.h
-    CustomGraphicsScene.cpp
-    ZoomHandler.h
-    ZoomHandler.cpp
-    PanHandler.h
-    PanHandler.cpp
-    RubberBandHandler.h
-    RubberBandHandler.cpp
+    handlers/IInteractionHandler.h
+    view/CustomGraphicsView.h
+    view/CustomGraphicsView.cpp
+    view/CustomGraphicsScene.h
+    view/CustomGraphicsScene.cpp
+    handlers/ZoomHandler.h
+    handlers/ZoomHandler.cpp
+    handlers/PanHandler.h
+    handlers/PanHandler.cpp
+    handlers/RubberBandHandler.h
+    handlers/RubberBandHandler.cpp
 )
 
 target_link_libraries(customGraphics

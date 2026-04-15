@@ -1,7 +1,7 @@
 #include "graphicstestwidget.h"
 #include "ui_graphicstestwidget.h"
-#include "CustomGraphicsView.h"
-#include "CustomGraphicsScene.h"
+#include "view/CustomGraphicsView.h"
+#include "view/CustomGraphicsScene.h"
 
 #include <QVBoxLayout>
 #include <QGraphicsRectItem>
