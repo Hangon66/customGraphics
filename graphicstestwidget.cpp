@@ -130,7 +130,7 @@ void GraphicsTestWidget::initToolBar()
     toolLayout->addStretch();
 
     // 帮助提示
-    QLabel *helpLabel = new QLabel("滚轮缩放 | 中键平移 | 左键绘制/选择 | Esc取消", toolBar);
+    QLabel *helpLabel = new QLabel("滚轮缩放 | 中键平移 | 左键绘制/选择 | Delete删除 | Esc取消", toolBar);
     helpLabel->setStyleSheet("color: #666; font-size: 11px;");
     toolLayout->addWidget(helpLabel);
 
@@ -160,9 +160,10 @@ void GraphicsTestWidget::updateModeDisplay()
         "当前: 绘制模式 (按 D 切换)" :
         "当前: 选择模式 (按 D 切换)");
 
-    // 设置焦点以接收按键事件
-    setFocusPolicy(Qt::StrongFocus);
-    setFocus();
+    // 确保视图有焦点以接收按键事件
+    if (m_view) {
+        m_view->setFocus();
+    }
 }
 void GraphicsTestWidget::addTestItems()
 {

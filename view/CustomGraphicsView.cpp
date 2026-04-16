@@ -21,6 +21,10 @@ CustomGraphicsView::CustomGraphicsView(QWidget *parent)
     setDragMode(QGraphicsView::NoDrag);
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
+
+    // 设置焦点策略，确保能够接收键盘事件
+    setFocusPolicy(Qt::StrongFocus);
+    setFocus();
 }
 
 CustomGraphicsView *CustomGraphicsView::createDefaultView(QWidget *parent)
@@ -76,6 +80,31 @@ void CustomGraphicsView::setHandlerEnabled(const QString &name, bool enabled)
     if (handler) {
         handler->setEnabled(enabled);
     }
+}
+
+int CustomGraphicsView::deleteSelectedItems()
+{
+    if (!scene()) {
+        return 0;
+    }
+
+    QList<QGraphicsItem*> selectedItems = scene()->selectedItems();
+    int count = selectedItems.size();
+
+    for (QGraphicsItem *item : selectedItems) {
+        scene()->removeItem(item);
+        delete item;
+    }
+
+    return count;
+}
+
+bool CustomGraphicsView::hasSelectedItems() const
+{
+    if (!scene()) {
+        return false;
+    }
+    return !scene()->selectedItems().isEmpty();
 }
 
 void CustomGraphicsView::ensureHandlersSorted()
@@ -180,6 +209,15 @@ void CustomGraphicsView::wheelEvent(QWheelEvent *event)
 
 void CustomGraphicsView::keyPressEvent(QKeyEvent *event)
 {
+    // Delete 键删除选中图元
+    if (event->key() == Qt::Key_Delete) {
+        int deleted = deleteSelectedItems();
+        if (deleted > 0) {
+            event->accept();
+            return;
+        }
+    }
+
     ensureHandlersSorted();
 
     for (IInteractionHandler *handler : m_handlers) {

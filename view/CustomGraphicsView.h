@@ -107,6 +107,20 @@ public:
      */
     void setHandlerEnabled(const QString &name, bool enabled);
 
+    /**
+     * @brief 删除场景中当前选中的所有图元。
+     *
+     * @return 被删除的图元数量。
+     */
+    int deleteSelectedItems();
+
+    /**
+     * @brief 判断场景中是否有选中的图元。
+     *
+     * @return true 有选中图元；false 无选中图元。
+     */
+    bool hasSelectedItems() const;
+
 protected:
     /**
      * @brief 处理鼠标按下事件并分发给 Handler。
