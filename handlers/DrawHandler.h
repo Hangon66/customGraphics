@@ -119,6 +119,108 @@ private:
 };
 
 /**
+ * @brief 带标签的线条图元类。
+ *
+ * 继承自 QGraphicsLineItem，在线条中点上方绘制标签文本。
+ */
+class LabeledLineItem : public QGraphicsLineItem
+{
+public:
+    /**
+     * @brief 构造函数。
+     *
+     * @param line 线条几何。
+     * @param parent 父图元。
+     */
+    explicit LabeledLineItem(const QLineF &line, QGraphicsItem *parent = nullptr);
+
+    /**
+     * @brief 构造函数（使用坐标）。
+     *
+     * @param x1 起点X坐标。
+     * @param y1 起点Y坐标。
+     * @param x2 终点X坐标。
+     * @param y2 终点Y坐标。
+     * @param parent 父图元。
+     */
+    LabeledLineItem(qreal x1, qreal y1, qreal x2, qreal y2, QGraphicsItem *parent = nullptr);
+
+    /**
+     * @brief 设置标签文本。
+     *
+     * @param text 标签内容。
+     */
+    void setLabelText(const QString &text);
+
+    /**
+     * @brief 获取标签文本。
+     *
+     * @return 当前标签文本。
+     */
+    QString labelText() const;
+
+    /**
+     * @brief 设置标签字体。
+     *
+     * @param font 字体对象。
+     */
+    void setLabelFont(const QFont &font);
+
+    /**
+     * @brief 获取标签字体。
+     *
+     * @return 当前字体对象。
+     */
+    QFont labelFont() const;
+
+    /**
+     * @brief 设置标签颜色。
+     *
+     * @param color 文本颜色。
+     */
+    void setLabelColor(const QColor &color);
+
+    /**
+     * @brief 获取标签颜色。
+     *
+     * @return 当前文本颜色。
+     */
+    QColor labelColor() const;
+
+    /**
+     * @brief 重写绘制方法，在线条上绘制标签。
+     *
+     * @param painter 绘制器。
+     * @param option 样式选项。
+     * @param widget 父控件。
+     */
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
+
+    /**
+     * @brief 重写边界矩形计算，考虑标签文本。
+     *
+     * @return 图元边界矩形。
+     */
+    QRectF boundingRect() const override;
+
+private:
+    /**
+     * @brief 标签文本内容。
+     */
+    QString m_labelText;
+
+    /**
+     * @brief 标签字体。
+     */
+    QFont m_labelFont;
+
+    /**
+     * @brief 标签文本颜色。
+     */
+    QColor m_labelColor;
+};
+
+/**
  * @brief 图形绘制处理器。
  *
  * 支持绘制矩形和线条，并可对绘制的图形进行命名。
@@ -509,7 +611,7 @@ private:
     /**
      * @brief 线条预览图元。
      */
-    QGraphicsLineItem *m_linePreview;
+    LabeledLineItem *m_linePreview;
 
     /**
      * @brief 撤销栈，用于支持撤销/重做。

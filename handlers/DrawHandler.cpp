@@ -96,6 +96,114 @@ QRectF LabeledRectItem::boundingRect() const
     return QGraphicsRectItem::boundingRect();
 }
 
+// ==================== LabeledLineItem 实现 ====================
+
+LabeledLineItem::LabeledLineItem(const QLineF &line, QGraphicsItem *parent)
+    : QGraphicsLineItem(line, parent)
+    , m_labelText()
+    , m_labelFont("Arial", 10)
+    , m_labelColor(Qt::white)
+{
+}
+
+LabeledLineItem::LabeledLineItem(qreal x1, qreal y1, qreal x2, qreal y2, QGraphicsItem *parent)
+    : QGraphicsLineItem(x1, y1, x2, y2, parent)
+    , m_labelText()
+    , m_labelFont("Arial", 10)
+    , m_labelColor(Qt::white)
+{
+}
+
+void LabeledLineItem::setLabelText(const QString &text)
+{
+    m_labelText = text;
+    update();
+}
+
+QString LabeledLineItem::labelText() const
+{
+    return m_labelText;
+}
+
+void LabeledLineItem::setLabelFont(const QFont &font)
+{
+    m_labelFont = font;
+    update();
+}
+
+QFont LabeledLineItem::labelFont() const
+{
+    return m_labelFont;
+}
+
+void LabeledLineItem::setLabelColor(const QColor &color)
+{
+    m_labelColor = color;
+    update();
+}
+
+QColor LabeledLineItem::labelColor() const
+{
+    return m_labelColor;
+}
+
+void LabeledLineItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    // 先绘制线条基类
+    QGraphicsLineItem::paint(painter, option, widget);
+
+    // 如果有标签文本，在线条中点上方绘制
+    if (!m_labelText.isEmpty()) {
+        QLineF line = this->line();
+        QPointF midPoint = line.center();
+
+        // 设置字体和颜色
+        painter->setFont(m_labelFont);
+        painter->setPen(m_labelColor);
+
+        // 计算文本尺寸
+        QFontMetrics fm(m_labelFont);
+        QRect textRect = fm.boundingRect(m_labelText);
+
+        // 背景框尺寸
+        int bgWidth = textRect.width() + 8;
+        int bgHeight = textRect.height() + 4;
+
+        // 背景框中心位置（在线条中点上方）
+        qreal bgCenterX = midPoint.x();
+        qreal bgCenterY = midPoint.y() - bgHeight / 2.0 - 8;  // 在线条上方留8像素间距
+
+        // 绘制半透明背景
+        QColor bgColor(0, 0, 0, 120);
+        QRect bgRect(static_cast<int>(bgCenterX - bgWidth / 2.0),
+                     static_cast<int>(bgCenterY - bgHeight / 2.0),
+                     bgWidth, bgHeight);
+        painter->fillRect(bgRect, bgColor);
+
+        // 在背景框内居中绘制文本
+        painter->drawText(bgRect, Qt::AlignCenter, m_labelText);
+    }
+}
+
+QRectF LabeledLineItem::boundingRect() const
+{
+    QRectF baseRect = QGraphicsLineItem::boundingRect();
+
+    if (!m_labelText.isEmpty()) {
+        QFontMetrics fm(m_labelFont);
+        QRect textRect = fm.boundingRect(m_labelText);
+
+        // 扩展边界以包含标签（在线条上方，与 paint 中的计算一致）
+        int bgHeight = textRect.height() + 4;
+        qreal extraHeight = bgHeight + 8 + 4;  // 背景高度 + 间距 + 边距
+        qreal extraWidth = (textRect.width() + 8) / 2.0 + 4;
+
+        baseRect.adjust(-extraWidth, -extraHeight, extraWidth, 0);
+    }
+
+    return baseRect;
+}
+
 // ==================== DrawHandler 实现 ====================
 
 DrawHandler::DrawHandler(DrawMode mode, bool enableNaming,
@@ -393,8 +501,11 @@ void DrawHandler::startDrawingLine(const QPointF &scenePos)
         return;
     }
 
-    m_linePreview = m_scene->addLine(QLineF(scenePos, scenePos), m_linePen);
+    // 使用 LabeledLineItem 代替普通线条
+    m_linePreview = new LabeledLineItem(QLineF(scenePos, scenePos));
+    m_linePreview->setPen(m_linePen);
     m_linePreview->setZValue(100);
+    m_scene->addItem(m_linePreview);
 }
 
 void DrawHandler::updateRect(const QPointF &scenePos)
@@ -529,6 +640,9 @@ void DrawHandler::finishLine()
     m_linePreview->setData(0, "DrawShape");
     m_linePreview->setData(1, static_cast<int>(ShapeType::Line));
     m_linePreview->setData(2, name);
+
+    // 设置线条标签文本
+    m_linePreview->setLabelText(name);
 
     // 先从场景移除预览图元（因为命令会重新添加）
     if (m_scene) {
