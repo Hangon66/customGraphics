@@ -244,8 +244,8 @@ private:
 /**
  * @brief 图形绘制处理器。
  *
- * 支持绘制矩形和线条，并可对绘制的图形进行命名。
- * 主要用于石材切割场景和楼层设备场景的图形标注。
+ * 支持绘制多种图形（矩形、线条、圆形、椭圆等），并可对绘制的图形进行命名。
+ * 使用数字键切换图形类型，主要用于石材切割场景和楼层设备场景的图形标注。
  */
 class DrawHandler : public AbstractInteractionHandler
 {
@@ -254,17 +254,19 @@ class DrawHandler : public AbstractInteractionHandler
 public:
     /**
      * @brief 绘制模式枚举。
+     *
+     * 简化的绘制模式，不再限制具体图形类型。
      */
     enum class DrawMode
     {
-        None,       ///< 不绘制
-        RectOnly,   ///< 仅绘制矩形
-        LineOnly,   ///< 仅绘制线条
-        RectAndLine ///< 绘制矩形和线条
+        None,   ///< 不绘制（禁用）
+        Active   ///< 激活绘制（可切换图形类型）
     };
 
     /**
      * @brief 图形类型枚举。
+     *
+     * 支持的绘制图形类型。
      */
     enum class ShapeType
     {
@@ -273,15 +275,36 @@ public:
     };
 
     /**
+     * @brief 获取图形类型数量。
+     */
+    static constexpr int shapeTypeCount() { return 2; }
+
+    /**
+     * @brief 获取图形类型的默认快捷键。
+     *
+     * @param type 图形类型。
+     * @return 对应的数字键（1-4）。
+     */
+    static int shapeTypeShortcut(ShapeType type);
+
+    /**
+     * @brief 根据快捷键获取图形类型。
+     *
+     * @param key 按键值。
+     * @return 对应的图形类型，如果不匹配返回 Rect。
+     */
+    static ShapeType shapeTypeFromShortcut(int key);
+
+    /**
      * @brief 构造函数。
      *
-     * @param mode 绘制模式，默认为 RectAndLine。
+     * @param mode 绘制模式，默认为 Active。
      * @param enableNaming 是否启用命名功能，默认为 true。
      * @param namePrefix 图形名称前缀，默认为 "Shape"。
      * @param priority 处理器优先级，默认为 20。
      * @param parent 父 QObject 对象。
      */
-    explicit DrawHandler(DrawMode mode = DrawMode::RectAndLine,
+    explicit DrawHandler(DrawMode mode = DrawMode::Active,
                          bool enableNaming = true,
                          const QString &namePrefix = "Shape",
                          int priority = 20,
@@ -336,7 +359,7 @@ public:
     /**
      * @brief 设置当前绘制图形类型。
      *
-     * 仅在 DrawMode 为 RectAndLine 时有效。
+     * 在 DrawMode::Active 模式下有效。
      *
      * @param type 图形类型。
      */
@@ -508,6 +531,15 @@ signals:
      * @param active true 绘制模式；false 选择模式。
      */
     void drawingActiveChanged(bool active);
+
+    /**
+     * @brief 图形类型切换信号。
+     *
+     * 当用户切换绘制图形类型时发出。
+     *
+     * @param shapeType 新的图形类型。
+     */
+    void shapeTypeChanged(ShapeType shapeType);
 
 private:
     /**

@@ -37,7 +37,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
         handlers << new RulerHandler(10.0, "mm");
-        handlers << new DrawHandler(DrawHandler::DrawMode::RectAndLine, true, "Cut");
+        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Cut");
         return handlers;
     };
 
@@ -74,7 +74,7 @@ SceneConfig SceneConfigFactory::createFloorPlanConfig()
         handlers << new ZoomHandler(100);
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
-        handlers << new DrawHandler(DrawHandler::DrawMode::RectAndLine, true, "Area");
+        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Area");
         handlers << new DragDropHandler();
         return handlers;
     };

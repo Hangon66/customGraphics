@@ -16,6 +16,23 @@
 #include <QFontMetrics>
 #include <QUndoStack>
 
+// ==================== 辅助函数 ====================
+
+/**
+ * @brief 将 DrawHandler::ShapeType 转换为 CollisionShapeType。
+ */
+static CollisionShapeType toCollisionShapeType(DrawHandler::ShapeType type)
+{
+    switch (type) {
+    case DrawHandler::ShapeType::Rect:
+        return CollisionShapeType::Rect;
+    case DrawHandler::ShapeType::Line:
+        return CollisionShapeType::Line;
+    default:
+        return CollisionShapeType::Unknown;
+    }
+}
+
 // ==================== LabeledRectItem 实现 ====================
 
 LabeledRectItem::LabeledRectItem(const QRectF &rect, QGraphicsItem *parent)
@@ -255,6 +272,26 @@ QPainterPath LabeledLineItem::shape() const
     return path;
 }
 
+// ==================== DrawHandler 辅助函数 ====================
+
+int DrawHandler::shapeTypeShortcut(ShapeType type)
+{
+    switch (type) {
+    case ShapeType::Rect: return Qt::Key_1;
+    case ShapeType::Line: return Qt::Key_2;
+    default: return Qt::Key_1;
+    }
+}
+
+DrawHandler::ShapeType DrawHandler::shapeTypeFromShortcut(int key)
+{
+    switch (key) {
+    case Qt::Key_1: return ShapeType::Rect;
+    case Qt::Key_2: return ShapeType::Line;
+    default: return ShapeType::Rect;
+    }
+}
+
 // ==================== DrawHandler 实现 ====================
 
 DrawHandler::DrawHandler(DrawMode mode, bool enableNaming,
@@ -305,7 +342,10 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
 
     QPointF scenePos = view->mapToScene(event->pos());
 
-    // 碰撞检测：检查起点是否在其他图元内部
+    // 使用当前图形类型
+    ShapeType drawType = m_currentShapeType;
+
+    // 碰撞检测：检查起点是否在与当前绘制类型有碰撞配置的图元内部
     if (m_scene) {
         // 获取碰撞配置（如果场景支持）
         const CollisionConfig *config = nullptr;
@@ -318,30 +358,25 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
             config = &defaultConfig;
         }
 
-        if (CollisionHandler::pointInAnyItem(m_scene, scenePos, nullptr, config)) {
-            // 起点在其他图元内，不开始绘制
+        // 将绘制类型转换为碰撞类型
+        CollisionShapeType sourceCollisionType = toCollisionShapeType(drawType);
+
+        QGraphicsItem *itemAtStart = CollisionHandler::pointInAnyItemWithConfig(
+            m_scene, scenePos, nullptr, sourceCollisionType, *config);
+        if (itemAtStart) {
+            // 起点在碰撞图元内，选中该图元并允许拖动
+            // 清除其他选中状态，只选中点击的图元
+            m_scene->clearSelection();
+            itemAtStart->setSelected(true);
+            // 返回 false 让 QGraphicsView 处理拖动
             return false;
         }
     }
 
-    // 根据当前模式决定绘制类型
-    ShapeType drawType = m_currentShapeType;
-    if (m_drawMode == DrawMode::RectOnly) {
-        drawType = ShapeType::Rect;
-    } else if (m_drawMode == DrawMode::LineOnly) {
-        drawType = ShapeType::Line;
-    }
-
-    // 检查是否支持该类型
-    if (m_drawMode == DrawMode::RectOnly && drawType == ShapeType::Line) {
-        return false;
-    }
-    if (m_drawMode == DrawMode::LineOnly && drawType == ShapeType::Rect) {
-        return false;
-    }
-
     m_isDrawing = true;
     m_startPos = scenePos;
+
+
 
     if (drawType == ShapeType::Rect) {
         startDrawingRect(scenePos);
@@ -410,16 +445,18 @@ bool DrawHandler::handleKeyPress(QGraphicsView *view, QKeyEvent *event)
         }
     }
 
-    // R 键切换到矩形模式
-    if (event->key() == Qt::Key_R && m_drawMode == DrawMode::RectAndLine) {
-        m_currentShapeType = ShapeType::Rect;
-        return true;
-    }
-
-    // L 键切换到线条模式
-    if (event->key() == Qt::Key_L && m_drawMode == DrawMode::RectAndLine) {
-        m_currentShapeType = ShapeType::Line;
-        return true;
+    // 数字键切换图形类型（在激活模式下且未正在绘制）
+    if (m_drawMode == DrawMode::Active && !m_isDrawing) {
+        int key = event->key();
+        // 检查是否是有效的数字键（1-4）
+        if (key >= Qt::Key_1 && key <= Qt::Key_1 + shapeTypeCount() - 1) {
+            ShapeType newType = shapeTypeFromShortcut(key);
+            if (newType != m_currentShapeType) {
+                m_currentShapeType = newType;
+                emit shapeTypeChanged(newType);
+            }
+            return true;
+        }
     }
 
     return false;
@@ -428,13 +465,6 @@ bool DrawHandler::handleKeyPress(QGraphicsView *view, QKeyEvent *event)
 void DrawHandler::setDrawMode(DrawMode mode)
 {
     m_drawMode = mode;
-
-    // 自动调整当前类型
-    if (mode == DrawMode::RectOnly) {
-        m_currentShapeType = ShapeType::Rect;
-    } else if (mode == DrawMode::LineOnly) {
-        m_currentShapeType = ShapeType::Line;
-    }
 }
 
 DrawHandler::DrawMode DrawHandler::drawMode() const
@@ -444,8 +474,9 @@ DrawHandler::DrawMode DrawHandler::drawMode() const
 
 void DrawHandler::setCurrentShapeType(ShapeType type)
 {
-    if (m_drawMode == DrawMode::RectAndLine) {
+    if (m_currentShapeType != type) {
         m_currentShapeType = type;
+        emit shapeTypeChanged(type);
     }
 }
 

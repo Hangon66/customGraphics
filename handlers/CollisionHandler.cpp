@@ -101,19 +101,44 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
             continue;
         }
 
-        // 如果有配置，使用配置检查
-        if (config) {
-            CollisionShapeType itemType = getShapeType(item);
-            // 对于点检测，假设源类型为 Unknown（允许所有）
-            if (!config->isCollisionEnabled(itemType, CollisionShapeType::Unknown)) {
-                if (!isCollisionItem(item)) {
-                    continue;
-                }
-            }
-        } else {
-            if (!isCollisionItem(item)) {
-                continue;
-            }
+        // 先检查是否参与碰撞
+        if (!isCollisionItem(item)) {
+            continue;
+        }
+
+        // 点检测不检查碰撞配置，因为这是用于判断点击位置是否有图元
+        // 而不是真正的碰撞检测
+        (void)config;  // 忽略配置参数
+
+        return item;
+    }
+
+    return nullptr;
+}
+
+QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene, const QPointF &point,
+                                                            QGraphicsItem *excludeItem,
+                                                            CollisionShapeType sourceType,
+                                                            const CollisionConfig &config)
+{
+    if (!scene) {
+        return nullptr;
+    }
+
+    QList<QGraphicsItem*> itemsAtPoint = scene->items(point);
+    for (QGraphicsItem *item : itemsAtPoint) {
+        if (item == excludeItem) {
+            continue;
+        }
+
+        // 先检查是否参与碰撞
+        if (!isCollisionItem(item)) {
+            continue;
+        }
+
+        // 检查碰撞配置
+        if (!isCollisionItemWithConfig(item, sourceType, config)) {
+            continue;
         }
 
         return item;
@@ -136,17 +161,16 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
             continue;
         }
 
+        // 先检查是否参与碰撞
+        if (!isCollisionItem(item)) {
+            continue;
+        }
+
         // 如果有配置，使用配置检查
         if (config) {
             CollisionShapeType itemType = getShapeType(item);
             // 对于矩形重叠检测，假设源类型为 Rect
             if (!config->isCollisionEnabled(itemType, CollisionShapeType::Rect)) {
-                if (!isCollisionItem(item)) {
-                    continue;
-                }
-            }
-        } else {
-            if (!isCollisionItem(item)) {
                 continue;
             }
         }

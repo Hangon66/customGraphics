@@ -247,8 +247,14 @@ void GraphicsTestWidget::connectHandlers()
     if (m_drawHandler) {
         connect(m_drawHandler, &DrawHandler::shapeCreated,
                 this, [](QGraphicsItem* item, DrawHandler::ShapeType type, const QString& name) {
-            qDebug() << "绘制完成:" << name
-                     << "类型:" << (type == DrawHandler::ShapeType::Rect ? "矩形" : "线条");
+            Q_UNUSED(item)
+            QString typeStr;
+            switch (type) {
+            case DrawHandler::ShapeType::Rect: typeStr = "矩形"; break;
+            case DrawHandler::ShapeType::Line: typeStr = "线条"; break;
+            default: typeStr = "未知"; break;
+            }
+            qDebug() << "绘制完成:" << name << "类型:" << typeStr;
         });
 
         // 连接模式切换信号，更新 UI 显示

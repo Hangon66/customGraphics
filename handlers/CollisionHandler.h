@@ -132,6 +132,23 @@ public:
                                           const CollisionConfig *config = nullptr);
 
     /**
+     * @brief 检查点是否在与源类型有碰撞配置的图元内部。
+     *
+     * 用于绘制模式下判断是否应该"绘制改选择"。
+     *
+     * @param scene 场景对象。
+     * @param point 要检查的点（场景坐标）。
+     * @param excludeItem 排除的图元。
+     * @param sourceType 源图元类型（当前绘制类型）。
+     * @param config 碰撞配置。
+     * @return 如果点在与源类型有碰撞配置的图元内，返回该图元；否则返回 nullptr。
+     */
+    static QGraphicsItem* pointInAnyItemWithConfig(QGraphicsScene *scene, const QPointF &point,
+                                                    QGraphicsItem *excludeItem,
+                                                    CollisionShapeType sourceType,
+                                                    const CollisionConfig &config);
+
+    /**
      * @brief 检查矩形是否与任何可碰撞图元重叠。
      *
      * @param scene 场景对象。
