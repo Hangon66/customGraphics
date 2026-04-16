@@ -54,6 +54,21 @@ private slots:
      */
     void toggleDrawSelectMode();
 
+    /**
+     * @brief 执行撤销操作。
+     */
+    void onUndo();
+
+    /**
+     * @brief 执行重做操作。
+     */
+    void onRedo();
+
+    /**
+     * @brief 更新撤销/重做按钮状态。
+     */
+    void updateUndoRedoState();
+
 private:
     /**
      * @brief 初始化石材切割场景。
@@ -119,5 +134,15 @@ private:
      * @brief 模式状态标签。
      */
     QLabel *m_modeLabel;
+
+    /**
+     * @brief 撤销按钮。
+     */
+    QPushButton *m_undoButton;
+
+    /**
+     * @brief 重做按钮。
+     */
+    QPushButton *m_redoButton;
 };
 #endif // GRAPHICSTESTWIDGET_H

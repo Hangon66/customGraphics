@@ -2,6 +2,8 @@
 
 #include <QPainter>
 #include <QtMath>
+#include <QGraphicsSceneMouseEvent>
+#include <QGraphicsItem>
 
 CustomGraphicsScene::CustomGraphicsScene(QObject *parent)
     : QGraphicsScene(parent)
@@ -114,4 +116,47 @@ void CustomGraphicsScene::drawBackground(QPainter *painter, const QRectF &rect)
         }
         painter->drawLines(lines);
     }
+}
+
+void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+    // 记录所有选中图元的位置
+    m_itemOldPositions.clear();
+
+    // 记录当前已选中图元的位置
+    QList<QGraphicsItem*> currentSelected = QGraphicsScene::selectedItems();
+    for (QGraphicsItem *item : currentSelected) {
+        m_itemOldPositions[item] = item->pos();
+    }
+
+    // 同时记录点击位置下方的图元位置（处理点击未选中图元的情况）
+    QGraphicsItem *itemUnderMouse = itemAt(event->scenePos(), QTransform());
+    if (itemUnderMouse && !m_itemOldPositions.contains(itemUnderMouse)) {
+        m_itemOldPositions[itemUnderMouse] = itemUnderMouse->pos();
+    }
+
+    QGraphicsScene::mousePressEvent(event);
+}
+
+void CustomGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+{
+    // 先调用父类处理，确保选择状态已更新
+    QGraphicsScene::mouseReleaseEvent(event);
+
+    // 检查选中图元是否移动，发送信号
+    QList<QGraphicsItem*> currentSelected = QGraphicsScene::selectedItems();
+    for (QGraphicsItem *item : currentSelected) {
+        if (m_itemOldPositions.contains(item)) {
+            QPointF oldPos = m_itemOldPositions[item];
+            QPointF newPos = item->pos();
+
+            // 如果位置有变化，发送信号
+            if (!qFuzzyCompare(oldPos.x(), newPos.x()) ||
+                !qFuzzyCompare(oldPos.y(), newPos.y())) {
+                emit itemMoved(item, oldPos, newPos);
+            }
+        }
+    }
+
+    m_itemOldPositions.clear();
 }

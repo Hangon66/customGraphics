@@ -1,4 +1,5 @@
 #include "DrawHandler.h"
+#include "../commands/ShapeCommands.h"
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
@@ -10,6 +11,7 @@
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
 #include <QFontMetrics>
+#include <QUndoStack>
 
 // ==================== LabeledRectItem 实现 ====================
 
@@ -112,6 +114,7 @@ DrawHandler::DrawHandler(DrawMode mode, bool enableNaming,
     , m_isDrawing(false)
     , m_rectPreview(nullptr)
     , m_linePreview(nullptr)
+    , m_undoStack(nullptr)
 {
 }
 
@@ -215,6 +218,12 @@ bool DrawHandler::handleKeyPress(QGraphicsView *view, QKeyEvent *event)
 {
     Q_UNUSED(view)
 
+    // D 键切换绘制/选择模式
+    if (event->key() == Qt::Key_D) {
+        toggleDrawingMode();
+        return true;
+    }
+
     // Escape 键取消绘制
     if (event->key() == Qt::Key_Escape) {
         if (m_isDrawing) {
@@ -300,6 +309,7 @@ bool DrawHandler::isDrawingActive() const
 void DrawHandler::toggleDrawingMode()
 {
     m_drawingActive = !m_drawingActive;
+    emit drawingActiveChanged(m_drawingActive);
 }
 
 void DrawHandler::setRectPen(const QPen &pen)
@@ -340,6 +350,11 @@ void DrawHandler::setScene(QGraphicsScene *scene)
 QGraphicsScene *DrawHandler::scene() const
 {
     return m_scene;
+}
+
+void DrawHandler::setUndoStack(QUndoStack *undoStack)
+{
+    m_undoStack = undoStack;
 }
 
 void DrawHandler::cancelDrawing()
@@ -448,6 +463,21 @@ void DrawHandler::finishRect()
     // 设置矩形内的标签文本
     m_rectPreview->setLabelText(name);
 
+    // 先从场景移除预览图元（因为命令会重新添加）
+    if (m_scene) {
+        m_scene->removeItem(m_rectPreview);
+    }
+
+    // 使用命令模式创建图形，支持撤销
+    if (m_undoStack) {
+        CreateShapeCommand *cmd = new CreateShapeCommand(m_scene, m_rectPreview);
+        cmd->setText(tr("创建矩形 %1").arg(name));
+        m_undoStack->push(cmd);
+    } else if (m_scene) {
+        // 无撤销栈时直接添加
+        m_scene->addItem(m_rectPreview);
+    }
+
     // 发送信号
     emit shapeCreated(m_rectPreview, ShapeType::Rect, name);
 
@@ -499,6 +529,21 @@ void DrawHandler::finishLine()
     m_linePreview->setData(0, "DrawShape");
     m_linePreview->setData(1, static_cast<int>(ShapeType::Line));
     m_linePreview->setData(2, name);
+
+    // 先从场景移除预览图元（因为命令会重新添加）
+    if (m_scene) {
+        m_scene->removeItem(m_linePreview);
+    }
+
+    // 使用命令模式创建图形，支持撤销
+    if (m_undoStack) {
+        CreateShapeCommand *cmd = new CreateShapeCommand(m_scene, m_linePreview);
+        cmd->setText(tr("创建线条 %1").arg(name));
+        m_undoStack->push(cmd);
+    } else if (m_scene) {
+        // 无撤销栈时直接添加
+        m_scene->addItem(m_linePreview);
+    }
 
     // 发送信号
     emit shapeCreated(m_linePreview, ShapeType::Line, name);

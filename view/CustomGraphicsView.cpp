@@ -4,18 +4,21 @@
 #include "../handlers/PanHandler.h"
 #include "../handlers/RubberBandHandler.h"
 #include "../handlers/RulerHandler.h"
+#include "../commands/ShapeCommands.h"
 
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QUndoStack>
 #include <algorithm>
 
 CustomGraphicsView::CustomGraphicsView(QWidget *parent)
     : QGraphicsView(parent)
     , m_handlersDirty(false)
     , m_activeMouseHandler(nullptr)
+    , m_undoStack(new QUndoStack(this))
 {
     setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     setDragMode(QGraphicsView::NoDrag);
@@ -91,9 +94,10 @@ int CustomGraphicsView::deleteSelectedItems()
     QList<QGraphicsItem*> selectedItems = scene()->selectedItems();
     int count = selectedItems.size();
 
-    for (QGraphicsItem *item : selectedItems) {
-        scene()->removeItem(item);
-        delete item;
+    if (count > 0) {
+        // 使用删除命令，支持撤销
+        DeleteShapeCommand *cmd = new DeleteShapeCommand(scene(), selectedItems);
+        m_undoStack->push(cmd);
     }
 
     return count;
@@ -105,6 +109,42 @@ bool CustomGraphicsView::hasSelectedItems() const
         return false;
     }
     return !scene()->selectedItems().isEmpty();
+}
+
+QUndoStack *CustomGraphicsView::undoStack() const
+{
+    return m_undoStack;
+}
+
+void CustomGraphicsView::undo()
+{
+    if (m_undoStack) {
+        m_undoStack->undo();
+    }
+}
+
+void CustomGraphicsView::redo()
+{
+    if (m_undoStack) {
+        m_undoStack->redo();
+    }
+}
+
+bool CustomGraphicsView::canUndo() const
+{
+    return m_undoStack && m_undoStack->canUndo();
+}
+
+bool CustomGraphicsView::canRedo() const
+{
+    return m_undoStack && m_undoStack->canRedo();
+}
+
+void CustomGraphicsView::pushCommand(QUndoCommand *command)
+{
+    if (m_undoStack && command) {
+        m_undoStack->push(command);
+    }
 }
 
 void CustomGraphicsView::ensureHandlersSorted()
@@ -209,6 +249,20 @@ void CustomGraphicsView::wheelEvent(QWheelEvent *event)
 
 void CustomGraphicsView::keyPressEvent(QKeyEvent *event)
 {
+    // Ctrl+Z 撤销
+    if (event->key() == Qt::Key_Z && event->modifiers() & Qt::ControlModifier) {
+        undo();
+        event->accept();
+        return;
+    }
+
+    // Ctrl+Y 重做
+    if (event->key() == Qt::Key_Y && event->modifiers() & Qt::ControlModifier) {
+        redo();
+        event->accept();
+        return;
+    }
+
     // Delete 键删除选中图元
     if (event->key() == Qt::Key_Delete) {
         int deleted = deleteSelectedItems();

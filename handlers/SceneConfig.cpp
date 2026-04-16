@@ -37,7 +37,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
         handlers << new RulerHandler(10.0, "mm");
-        handlers << new DrawHandler(DrawHandler::DrawMode::RectOnly, true, "Cut");
+        handlers << new DrawHandler(DrawHandler::DrawMode::RectAndLine, true, "Cut");
         return handlers;
     };
 

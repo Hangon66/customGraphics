@@ -27,6 +27,8 @@ qt_add_executable(customGraphics
     handlers/DrawHandler.cpp
     handlers/DragDropHandler.h
     handlers/DragDropHandler.cpp
+    commands/ShapeCommands.h
+    commands/ShapeCommands.cpp
     view/CustomGraphicsView.h
     view/CustomGraphicsView.cpp
     view/CustomGraphicsScene.h

@@ -13,6 +13,7 @@ class QGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
 class QGraphicsLineItem;
+class QUndoStack;
 
 /**
  * @brief 带标签的矩形图元类。
@@ -338,6 +339,13 @@ public:
     QGraphicsScene *scene() const;
 
     /**
+     * @brief 设置撤销栈，用于支持撤销/重做。
+     *
+     * @param undoStack 撤销栈对象。
+     */
+    void setUndoStack(QUndoStack *undoStack);
+
+    /**
      * @brief 取消当前正在进行的绘制操作。
      */
     void cancelDrawing();
@@ -368,6 +376,15 @@ signals:
      * @brief 绘制取消信号。
      */
     void drawingCancelled();
+
+    /**
+     * @brief 绘制激活状态改变信号。
+     *
+     * 当绘制/选择模式切换时发出。
+     *
+     * @param active true 绘制模式；false 选择模式。
+     */
+    void drawingActiveChanged(bool active);
 
 private:
     /**
@@ -493,6 +510,11 @@ private:
      * @brief 线条预览图元。
      */
     QGraphicsLineItem *m_linePreview;
+
+    /**
+     * @brief 撤销栈，用于支持撤销/重做。
+     */
+    QUndoStack *m_undoStack;
 };
 
 #endif // DRAWHANDLER_H

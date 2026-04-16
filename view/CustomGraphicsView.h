@@ -5,6 +5,8 @@
 #include <QList>
 
 class QPaintEvent;
+class QUndoStack;
+class QUndoCommand;
 class IInteractionHandler;
 
 /**
@@ -121,6 +123,46 @@ public:
      */
     bool hasSelectedItems() const;
 
+    // ========== 撤销/重做功能 ==========
+
+    /**
+     * @brief 获取撤销栈。
+     *
+     * @return 撤销栈指针。
+     */
+    QUndoStack *undoStack() const;
+
+    /**
+     * @brief 执行撤销操作。
+     */
+    void undo();
+
+    /**
+     * @brief 执行重做操作。
+     */
+    void redo();
+
+    /**
+     * @brief 判断是否可以撤销。
+     *
+     * @return true 可以撤销；false 不能撤销。
+     */
+    bool canUndo() const;
+
+    /**
+     * @brief 判断是否可以重做。
+     *
+     * @return true 可以重做；false 不能重做。
+     */
+    bool canRedo() const;
+
+    /**
+     * @brief 推送命令到撤销栈。
+     *
+     * @param command 命令对象（所有权转移）。
+     */
+    void pushCommand(QUndoCommand *command);
+
 protected:
     /**
      * @brief 处理鼠标按下事件并分发给 Handler。
@@ -231,6 +273,11 @@ private:
      * mouseRelease 处理完毕后重置为 nullptr。
      */
     IInteractionHandler *m_activeMouseHandler;
+
+    /**
+     * @brief 撤销栈，用于管理撤销/重做操作。
+     */
+    QUndoStack *m_undoStack;
 };
 
 #endif // CUSTOMGRAPHICSVIEW_H

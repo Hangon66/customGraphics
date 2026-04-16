@@ -3,6 +3,9 @@
 
 #include <QGraphicsScene>
 #include <QColor>
+#include <QHash>
+
+class QGraphicsItem;
 
 /**
  * @brief 自定义图形场景类，提供 2D 图形编辑器的公共场景基础设施。
@@ -10,6 +13,7 @@
  * 继承自 QGraphicsScene，封装了网格背景绘制、场景默认配置等通用功能。
  * 支持双层网格（细网格 + 粗网格），可通过接口配置网格大小、颜色和开关。
  * 设计为可跨项目复用的基础组件。
+ * 支持图元移动跟踪，用于撤销/重做功能。
  */
 class CustomGraphicsScene : public QGraphicsScene
 {
@@ -83,6 +87,18 @@ public:
      */
     void setBackgroundColor(const QColor &color);
 
+signals:
+    /**
+     * @brief 图元移动完成信号。
+     *
+     * 当图元被拖拽移动后发出，包含移动前后的位置信息。
+     *
+     * @param item 被移动的图元。
+     * @param oldPos 移动前的位置。
+     * @param newPos 移动后的位置。
+     */
+    void itemMoved(QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos);
+
 protected:
     /**
      * @brief 绘制场景背景，包含网格线。
@@ -94,6 +110,20 @@ protected:
      * @param rect 需要重绘的场景区域。
      */
     void drawBackground(QPainter *painter, const QRectF &rect) override;
+
+    /**
+     * @brief 处理鼠标按下事件，记录选中图元的初始位置。
+     *
+     * @param event 鼠标事件。
+     */
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+
+    /**
+     * @brief 处理鼠标释放事件，检测图元移动并发送信号。
+     *
+     * @param event 鼠标事件。
+     */
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 private:
     /**
@@ -131,6 +161,13 @@ private:
      * @brief 场景背景颜色。
      */
     QColor m_backgroundColor;
+
+    /**
+     * @brief 记录图元移动前的位置。
+     *
+     * key 为图元指针，value 为位置。
+     */
+    QHash<QGraphicsItem*, QPointF> m_itemOldPositions;
 };
 
 #endif // CUSTOMGRAPHICSSCENE_H

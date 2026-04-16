@@ -6,6 +6,7 @@
 #include "handlers/BackgroundHandler.h"
 #include "handlers/RulerHandler.h"
 #include "handlers/DrawHandler.h"
+#include "commands/ShapeCommands.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -16,6 +17,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QUndoStack>
 
 GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
     : QWidget(parent)
@@ -27,6 +29,8 @@ GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
     , m_drawHandler(nullptr)
     , m_modeButton(nullptr)
     , m_modeLabel(nullptr)
+    , m_undoButton(nullptr)
+    , m_redoButton(nullptr)
 {
     ui->setupUi(this);
     initStoneCuttingScene();
@@ -40,12 +44,6 @@ GraphicsTestWidget::~GraphicsTestWidget()
 
 void GraphicsTestWidget::keyPressEvent(QKeyEvent *event)
 {
-    // D 键切换绘制/选择模式
-    if (event->key() == Qt::Key_D) {
-        toggleDrawSelectMode();
-        return;
-    }
-
     QWidget::keyPressEvent(event);
 }
 
@@ -85,8 +83,16 @@ void GraphicsTestWidget::initStoneCuttingScene()
         else if (auto* drawHandler = dynamic_cast<DrawHandler*>(handler)) {
             m_drawHandler = drawHandler;
             m_drawHandler->setScene(m_scene);
+            // 设置撤销栈，支持撤销/重做
+            m_drawHandler->setUndoStack(m_view->undoStack());
         }
     }
+
+    // 连接撤销栈变化信号，更新按钮状态
+    connect(m_view->undoStack(), &QUndoStack::canUndoChanged,
+            this, &GraphicsTestWidget::updateUndoRedoState);
+    connect(m_view->undoStack(), &QUndoStack::canRedoChanged,
+            this, &GraphicsTestWidget::updateUndoRedoState);
 
     // 连接信号槽
     connectHandlers();
@@ -121,11 +127,34 @@ void GraphicsTestWidget::initToolBar()
         "QPushButton:!checked { background-color: #2196F3; color: white; }");
     connect(m_modeButton, &QPushButton::clicked, this, &GraphicsTestWidget::toggleDrawSelectMode);
 
+    // 撤销/重做按钮
+    m_undoButton = new QPushButton("撤销", toolBar);
+    m_undoButton->setFixedWidth(60);
+    m_undoButton->setEnabled(false);
+    m_undoButton->setToolTip("Ctrl+Z");
+    m_undoButton->setStyleSheet(
+        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
+        "QPushButton:enabled { background-color: #607D8B; color: white; }"
+        "QPushButton:disabled { background-color: #ccc; color: #666; }");
+    connect(m_undoButton, &QPushButton::clicked, this, &GraphicsTestWidget::onUndo);
+
+    m_redoButton = new QPushButton("重做", toolBar);
+    m_redoButton->setFixedWidth(60);
+    m_redoButton->setEnabled(false);
+    m_redoButton->setToolTip("Ctrl+Y");
+    m_redoButton->setStyleSheet(
+        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
+        "QPushButton:enabled { background-color: #607D8B; color: white; }"
+        "QPushButton:disabled { background-color: #ccc; color: #666; }");
+    connect(m_redoButton, &QPushButton::clicked, this, &GraphicsTestWidget::onRedo);
+
     // 模式状态标签
     m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", toolBar);
     m_modeLabel->setStyleSheet("color: #333;");
 
     toolLayout->addWidget(m_modeButton);
+    toolLayout->addWidget(m_undoButton);
+    toolLayout->addWidget(m_redoButton);
     toolLayout->addWidget(m_modeLabel);
     toolLayout->addStretch();
 
@@ -175,7 +204,7 @@ void GraphicsTestWidget::addTestItems()
     stoneRect->setData(0, "StoneArea");
     stoneRect->setData(2, "石板区域");
     stoneRect->setLabelText("石板区域");
-    stoneRect->setLabelColor(Qt::darkGray);
+    // stoneRect->setLabelColor(Qt::darkGray);
     m_scene->addItem(stoneRect);
 
     // 添加已有切割区域示例
@@ -214,6 +243,13 @@ void GraphicsTestWidget::connectHandlers()
             qDebug() << "绘制完成:" << name
                      << "类型:" << (type == DrawHandler::ShapeType::Rect ? "矩形" : "线条");
         });
+
+        // 连接模式切换信号，更新 UI 显示
+        connect(m_drawHandler, &DrawHandler::drawingActiveChanged,
+                this, [this](bool active) {
+            Q_UNUSED(active)
+            updateModeDisplay();
+        });
     }
 
     // 连接背景加载信号
@@ -222,5 +258,42 @@ void GraphicsTestWidget::connectHandlers()
                 this, [](bool success) {
             qDebug() << "背景加载:" << (success ? "成功" : "失败");
         });
+    }
+
+    // 连接场景的图元移动信号，支持移动撤销
+    if (m_scene) {
+        connect(m_scene, &CustomGraphicsScene::itemMoved,
+                this, [this](QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos) {
+            // 创建移动命令并推送到撤销栈
+            MoveShapeCommand *cmd = new MoveShapeCommand(item, oldPos, newPos);
+            m_view->undoStack()->push(cmd);
+            // 不增加计数器，因为 push 会自动调用 redo
+        });
+    }
+}
+
+void GraphicsTestWidget::onUndo()
+{
+    if (m_view) {
+        m_view->undo();
+    }
+}
+
+void GraphicsTestWidget::onRedo()
+{
+    if (m_view) {
+        m_view->redo();
+    }
+}
+
+void GraphicsTestWidget::updateUndoRedoState()
+{
+    if (m_view) {
+        if (m_undoButton) {
+            m_undoButton->setEnabled(m_view->canUndo());
+        }
+        if (m_redoButton) {
+            m_redoButton->setEnabled(m_view->canRedo());
+        }
     }
 }
