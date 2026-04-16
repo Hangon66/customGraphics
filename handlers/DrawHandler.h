@@ -592,6 +592,29 @@ private:
      */
     void removePreviewItem();
 
+    /**
+     * @brief 计算受限的矩形终点位置。
+     *
+     * 检测从起点到目标位置的矩形是否与其他图元碰撞，
+     * 如果碰撞则返回最近的不碰撞位置。
+     *
+     * @param targetPos 目标终点位置。
+     * @return 受限后的终点位置。
+     */
+    QPointF constrainRectEndpoint(const QPointF &targetPos);
+
+    /**
+     * @brief 计算受限的线条终点位置。
+     *
+     * 检测从起点到目标位置的线条是否与其他图元碰撞，
+     * 如果碰撞则返回最近的不碰撞位置。
+     *
+     * @param targetPos 目标终点位置。
+     * @return 受限后的终点位置。
+     */
+    QPointF constrainLineEndpoint(const QPointF &targetPos);
+
+
 private:
     /**
      * @brief 关联的场景。

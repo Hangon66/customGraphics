@@ -15,6 +15,7 @@
 #include <QStyleOptionGraphicsItem>
 #include <QFontMetrics>
 #include <QUndoStack>
+#include <cmath>
 
 // ==================== 辅助函数 ====================
 
@@ -615,7 +616,10 @@ void DrawHandler::updateRect(const QPointF &scenePos)
         return;
     }
 
-    QRectF rect = QRectF(m_startPos, scenePos).normalized();
+    // 计算受限的终点位置
+    QPointF constrainedPos = constrainRectEndpoint(scenePos);
+
+    QRectF rect = QRectF(m_startPos, constrainedPos).normalized();
     m_rectPreview->setRect(rect);
 }
 
@@ -625,7 +629,10 @@ void DrawHandler::updateLine(const QPointF &scenePos)
         return;
     }
 
-    m_linePreview->setLine(QLineF(m_startPos, scenePos));
+    // 计算受限的终点位置
+    QPointF constrainedPos = constrainLineEndpoint(scenePos);
+
+    m_linePreview->setLine(QLineF(m_startPos, constrainedPos));
 }
 
 void DrawHandler::finishRect()
@@ -642,38 +649,7 @@ void DrawHandler::finishRect()
         return;
     }
 
-    // 获取场景坐标系中的矩形
-    QRectF sceneRect = m_rectPreview->sceneBoundingRect();
-
-    // 获取碰撞配置
-    const CollisionConfig *config = nullptr;
-    CollisionConfig defaultConfig;
-    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene) {
-        config = &customScene->collisionConfig();
-    } else {
-        defaultConfig.enableAllCollisions();
-        config = &defaultConfig;
-    }
-
-    // 碰撞检测：检查终点是否在其他图元内部
-    QPointF endPoint = sceneRect.bottomRight();
-    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, endPoint, m_rectPreview, config)) {
-        // 终点在其他图元内，取消创建
-        removePreviewItem();
-        m_isDrawing = false;
-        qDebug() << "终点在其他图元内，取消绘制";
-        return;
-    }
-
-    // 碰撞检测：检查矩形是否与其他图元重叠
-    if (m_scene && CollisionHandler::rectOverlapsAnyItem(m_scene, sceneRect, m_rectPreview, config)) {
-        // 矩形与其他图元重叠，取消创建
-        removePreviewItem();
-        m_isDrawing = false;
-        qDebug() << "矩形与其他图元重叠，取消绘制";
-        return;
-    }
+    // 注意：终点位置已经在绘制过程中被限制，无需再次检查碰撞
 
     // 生成名称
     QString name = generateShapeName();
@@ -744,6 +720,8 @@ void DrawHandler::finishLine()
         m_isDrawing = false;
         return;
     }
+
+    // 注意：终点位置已经在绘制过程中被限制，无需再次检查碰撞
 
     // 生成名称
     QString name = generateShapeName();
@@ -819,3 +797,121 @@ void DrawHandler::removePreviewItem()
         m_linePreview = nullptr;
     }
 }
+
+QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
+{
+    if (!m_scene) {
+        return targetPos;
+    }
+
+    // 获取碰撞配置
+    const CollisionConfig *config = nullptr;
+    CollisionConfig defaultConfig;
+    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
+    if (customScene) {
+        config = &customScene->collisionConfig();
+    } else {
+        defaultConfig.enableAllCollisions();
+        config = &defaultConfig;
+    }
+
+    // 检查目标位置是否有效
+    QRectF targetRect = QRectF(m_startPos, targetPos).normalized();
+    if (!CollisionHandler::rectOverlapsAnyItem(m_scene, targetRect, nullptr, config)) {
+        return targetPos;  // 无碰撞，直接返回
+    }
+
+    // 使用二分查找找到最大有效位置
+    // 参数 t 从 0（起点）到 1（目标终点）
+    double tMin = 0.0;
+    double tMax = 1.0;
+    const int maxIterations = 20;  // 足够的精度
+    const double tolerance = 0.5;  // 像素容差
+
+    QPointF direction = targetPos - m_startPos;
+    double length = std::sqrt(direction.x() * direction.x() + direction.y() * direction.y());
+
+    // 如果长度太小，直接返回起点
+    if (length < tolerance) {
+        return m_startPos;
+    }
+
+    QPointF unitDir = direction / length;
+
+    for (int i = 0; i < maxIterations; ++i) {
+        double tMid = (tMin + tMax) / 2.0;
+        QPointF midPos = m_startPos + direction * tMid;
+        QRectF midRect = QRectF(m_startPos, midPos).normalized();
+
+        if (CollisionHandler::rectOverlapsAnyItem(m_scene, midRect, nullptr, config)) {
+            tMax = tMid;  // 碰撞，收缩
+        } else {
+            tMin = tMid;  // 无碰撞，扩展
+        }
+
+        // 检查精度是否足够
+        if ((tMax - tMin) * length < tolerance) {
+            break;
+        }
+    }
+
+    // 返回最大有效位置
+    // 由于 rectOverlapsAnyItem 已区分边界接触和真正重叠，无需收缩
+    return m_startPos + direction * tMin;
+}
+
+QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
+{
+    if (!m_scene) {
+        return targetPos;
+    }
+
+    // 获取碰撞配置
+    const CollisionConfig *config = nullptr;
+    CollisionConfig defaultConfig;
+    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
+    if (customScene) {
+        config = &customScene->collisionConfig();
+    } else {
+        defaultConfig.enableAllCollisions();
+        config = &defaultConfig;
+    }
+
+    // 对于线条，检查终点是否在图元内部
+    if (!CollisionHandler::pointInAnyItem(m_scene, targetPos, nullptr, config)) {
+        return targetPos;  // 终点无碰撞，直接返回
+    }
+
+    // 使用二分查找找到最大有效位置
+    double tMin = 0.0;
+    double tMax = 1.0;
+    const int maxIterations = 20;
+    const double tolerance = 0.5;
+
+    QPointF direction = targetPos - m_startPos;
+    double length = std::sqrt(direction.x() * direction.x() + direction.y() * direction.y());
+
+    if (length < tolerance) {
+        return m_startPos;
+    }
+
+    for (int i = 0; i < maxIterations; ++i) {
+        double tMid = (tMin + tMax) / 2.0;
+        QPointF midPos = m_startPos + direction * tMid;
+
+        if (CollisionHandler::pointInAnyItem(m_scene, midPos, nullptr, config)) {
+            tMax = tMid;  // 碰撞，收缩
+        } else {
+            tMin = tMid;  // 无碰撞，扩展
+        }
+
+        if ((tMax - tMin) * length < tolerance) {
+            break;
+        }
+    }
+
+    // 返回最大有效位置
+    // 点在边界上不属于碰撞，无需收缩
+    return m_startPos + direction * tMin;
+}
+

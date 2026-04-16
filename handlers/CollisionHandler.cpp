@@ -175,7 +175,12 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
             }
         }
 
-        return item;
+        // 使用 intersects 区分边界接触和真正重叠
+        // QRectF::intersects 在边界接触时返回 false，只有真正重叠才返回 true
+        QRectF itemRect = item->boundingRect().translated(item->pos());
+        if (rect.intersects(itemRect)) {
+            return item;
+        }
     }
 
     return nullptr;
