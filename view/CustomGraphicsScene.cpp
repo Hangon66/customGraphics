@@ -243,21 +243,27 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         }
 
         // 检查新位置是否与障碍物碰撞
-        QRectF newItemRect = item->boundingRect().translated(newPos);
-
+        // 使用 shape() 进行碰撞检测，确保不包含标签扩展区域
         for (QGraphicsItem *obstacle : obstacles) {
-            QRectF obstacleRect = obstacle->boundingRect().translated(obstacle->pos());
-
-            if (newItemRect.intersects(obstacleRect)) {
-                // 发生碰撞，计算沿移动方向的阻挡位置
+            // 使用 collidesWithItem 进行精确碰撞检测（基于 shape()）
+            // 先临时移动图元到新位置检测碰撞
+            item->setPos(newPos);
+            bool collides = item->collidesWithItem(obstacle, Qt::IntersectsItemShape);
+            
+            if (collides) {
+                // 发生碰撞，使用 shape() 的边界矩形计算阻挡位置
+                QRectF itemShapeRect = item->shape().boundingRect().translated(newPos);
+                QRectF obstacleShapeRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+                
+                // 计算沿移动方向的阻挡位置
                 QPointF blockedPos = calculateBlockedPosition(
-                    item->boundingRect(), oldPos, newPos, obstacleRect);
+                    item->shape().boundingRect(), oldPos, newPos, obstacleShapeRect);
 
                 // 设置到阻挡位置
                 item->setPos(blockedPos);
 
-                // 更新 newItemRect 用于后续障碍物检测
-                newItemRect = item->boundingRect().translated(blockedPos);
+                // 更新位置用于后续障碍物检测
+                newPos = blockedPos;
             }
         }
     }

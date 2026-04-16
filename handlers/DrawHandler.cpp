@@ -11,6 +11,7 @@
 #include <QKeyEvent>
 #include <QInputDialog>
 #include <QPainter>
+#include <QPainterPath>
 #include <QStyleOptionGraphicsItem>
 #include <QFontMetrics>
 #include <QUndoStack>
@@ -71,7 +72,7 @@ void LabeledRectItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
     // 先绘制矩形基类
     QGraphicsRectItem::paint(painter, option, widget);
 
-    // 如果有标签文本，在矩形内部居中绘制
+    // 如果有标签文本，在矩形中心绘制
     if (!m_labelText.isEmpty()) {
         QRectF rect = this->rect();
 
@@ -79,23 +80,62 @@ void LabeledRectItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
         painter->setFont(m_labelFont);
         painter->setPen(m_labelColor);
 
-        // 绘制背景（可选，提高可读性）
+        // 计算文本尺寸
         QFontMetrics fm(m_labelFont);
         QRect textRect = fm.boundingRect(m_labelText);
-        textRect.moveCenter(rect.center().toPoint());
+
+        // 背景框位置：以矩形中心为中心
+        int bgWidth = textRect.width() + 8;
+        int bgHeight = textRect.height() + 4;
+        qreal bgCenterX = rect.center().x();
+        qreal bgCenterY = rect.center().y();
 
         // 绘制半透明背景
         QColor bgColor(0, 0, 0, 120);
-        painter->fillRect(textRect.adjusted(-4, -2, 4, 2), bgColor);
+        QRect bgRect(static_cast<int>(bgCenterX - bgWidth / 2.0),
+                     static_cast<int>(bgCenterY - bgHeight / 2.0),
+                     bgWidth, bgHeight);
+        painter->fillRect(bgRect, bgColor);
 
-        // 绘制文本（居中）
-        painter->drawText(rect, Qt::AlignCenter, m_labelText);
+        // 在背景框内居中绘制文本
+        painter->drawText(bgRect, Qt::AlignCenter, m_labelText);
     }
 }
 
 QRectF LabeledRectItem::boundingRect() const
 {
-    return QGraphicsRectItem::boundingRect();
+    QRectF baseRect = QGraphicsRectItem::boundingRect();
+
+    if (!m_labelText.isEmpty()) {
+        QFontMetrics fm(m_labelFont);
+        QRect textRect = fm.boundingRect(m_labelText);
+
+        // 计算背景框尺寸
+        int bgWidth = textRect.width() + 8;
+        int bgHeight = textRect.height() + 4;
+
+        // 计算背景框可能超出矩形的部分
+        qreal rectWidth = baseRect.width();
+        qreal rectHeight = baseRect.height();
+
+        // 如果背景框大于矩形，需要扩展边界
+        qreal extraWidth = qMax(0.0, (bgWidth - rectWidth) / 2.0 + 2);
+        qreal extraHeight = qMax(0.0, (bgHeight - rectHeight) / 2.0 + 2);
+
+        if (extraWidth > 0 || extraHeight > 0) {
+            baseRect.adjust(-extraWidth, -extraHeight, extraWidth, extraHeight);
+        }
+    }
+
+    return baseRect;
+}
+
+QPainterPath LabeledRectItem::shape() const
+{
+    // 碰撞检测使用原始矩形，不包含标签区域
+    QPainterPath path;
+    path.addRect(rect());
+    return path;
 }
 
 // ==================== LabeledLineItem 实现 ====================
@@ -204,6 +244,15 @@ QRectF LabeledLineItem::boundingRect() const
     }
 
     return baseRect;
+}
+
+QPainterPath LabeledLineItem::shape() const
+{
+    // 碰撞检测使用原始线条，不包含标签区域
+    QPainterPath path;
+    path.moveTo(line().p1());
+    path.lineTo(line().p2());
+    return path;
 }
 
 // ==================== DrawHandler 实现 ====================

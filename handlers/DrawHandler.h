@@ -8,6 +8,7 @@
 #include <QBrush>
 #include <QGraphicsRectItem>
 #include <QFont>
+#include <QPainterPath>
 
 class QGraphicsScene;
 class QGraphicsItem;
@@ -95,11 +96,22 @@ public:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
 
     /**
-     * @brief 重写边界矩形计算，考虑标签文本。
+     * @brief 重写边界矩形计算，包含标签区域。
      *
-     * @return 图元边界矩形。
+     * 用于确定重绘区域，确保标签超出矩形部分也能正确刷新。
+     *
+     * @return 图元边界矩形（包含标签区域）。
      */
     QRectF boundingRect() const override;
+
+    /**
+     * @brief 重写形状方法，返回原始矩形用于碰撞检测。
+     *
+     * 碰撞检测基于原始矩形，不包含标签装饰区域。
+     *
+     * @return 图元碰撞形状。
+     */
+    QPainterPath shape() const override;
 
 private:
     /**
@@ -199,9 +211,18 @@ public:
     /**
      * @brief 重写边界矩形计算，考虑标签文本。
      *
-     * @return 图元边界矩形。
+     * @return 图元边界矩形（包含标签区域）。
      */
     QRectF boundingRect() const override;
+
+    /**
+     * @brief 重写形状方法，返回原始线条用于碰撞检测。
+     *
+     * 碰撞检测基于原始线条，不包含标签装饰区域。
+     *
+     * @return 图元碰撞形状。
+     */
+    QPainterPath shape() const override;
 
 private:
     /**
