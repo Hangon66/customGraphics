@@ -8,10 +8,14 @@
 #include "handlers/DrawHandler.h"
 
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QGraphicsRectItem>
 #include <QPen>
 #include <QBrush>
 #include <QDebug>
+#include <QPushButton>
+#include <QLabel>
+#include <QKeyEvent>
 
 GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
     : QWidget(parent)
@@ -21,14 +25,36 @@ GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
     , m_backgroundHandler(nullptr)
     , m_rulerHandler(nullptr)
     , m_drawHandler(nullptr)
+    , m_modeButton(nullptr)
+    , m_modeLabel(nullptr)
 {
     ui->setupUi(this);
     initStoneCuttingScene();
+    initToolBar();
 }
 
 GraphicsTestWidget::~GraphicsTestWidget()
 {
     delete ui;
+}
+
+void GraphicsTestWidget::keyPressEvent(QKeyEvent *event)
+{
+    // D 键切换绘制/选择模式
+    if (event->key() == Qt::Key_D) {
+        toggleDrawSelectMode();
+        return;
+    }
+
+    QWidget::keyPressEvent(event);
+}
+
+void GraphicsTestWidget::toggleDrawSelectMode()
+{
+    if (m_drawHandler) {
+        m_drawHandler->toggleDrawingMode();
+        updateModeDisplay();
+    }
 }
 
 void GraphicsTestWidget::initStoneCuttingScene()
@@ -62,11 +88,6 @@ void GraphicsTestWidget::initStoneCuttingScene()
         }
     }
 
-    // 设置布局
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(m_view);
-
     // 连接信号槽
     connectHandlers();
 
@@ -78,6 +99,71 @@ void GraphicsTestWidget::initStoneCuttingScene()
              << config.rulerUnitName;
 }
 
+void GraphicsTestWidget::initToolBar()
+{
+    // 创建工具栏容器
+    QWidget *toolBar = new QWidget(this);
+    toolBar->setFixedHeight(40);
+    toolBar->setStyleSheet("background-color: #f0f0f0; border-bottom: 1px solid #ccc;");
+
+    QHBoxLayout *toolLayout = new QHBoxLayout(toolBar);
+    toolLayout->setContentsMargins(10, 5, 10, 5);
+    toolLayout->setSpacing(10);
+
+    // 模式切换按钮
+    m_modeButton = new QPushButton("绘制模式", toolBar);
+    m_modeButton->setCheckable(true);
+    m_modeButton->setChecked(true);
+    m_modeButton->setFixedWidth(100);
+    m_modeButton->setStyleSheet(
+        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
+        "QPushButton:checked { background-color: #4CAF50; color: white; }"
+        "QPushButton:!checked { background-color: #2196F3; color: white; }");
+    connect(m_modeButton, &QPushButton::clicked, this, &GraphicsTestWidget::toggleDrawSelectMode);
+
+    // 模式状态标签
+    m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", toolBar);
+    m_modeLabel->setStyleSheet("color: #333;");
+
+    toolLayout->addWidget(m_modeButton);
+    toolLayout->addWidget(m_modeLabel);
+    toolLayout->addStretch();
+
+    // 帮助提示
+    QLabel *helpLabel = new QLabel("滚轮缩放 | 中键平移 | 左键绘制/选择 | Esc取消", toolBar);
+    helpLabel->setStyleSheet("color: #666; font-size: 11px;");
+    toolLayout->addWidget(helpLabel);
+
+    // 主布局
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
+    mainLayout->addWidget(toolBar);
+    mainLayout->addWidget(m_view);
+
+    // 更新模式显示
+    updateModeDisplay();
+}
+
+void GraphicsTestWidget::updateModeDisplay()
+{
+    if (!m_drawHandler || !m_modeButton || !m_modeLabel) {
+        return;
+    }
+
+    bool isDrawMode = m_drawHandler->isDrawingActive();
+
+    m_modeButton->setChecked(isDrawMode);
+    m_modeButton->setText(isDrawMode ? "绘制模式" : "选择模式");
+
+    m_modeLabel->setText(isDrawMode ?
+        "当前: 绘制模式 (按 D 切换)" :
+        "当前: 选择模式 (按 D 切换)");
+
+    // 设置焦点以接收按键事件
+    setFocusPolicy(Qt::StrongFocus);
+    setFocus();
+}
 void GraphicsTestWidget::addTestItems()
 {
     // 添加示例石板区域

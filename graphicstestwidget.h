@@ -15,6 +15,8 @@ class BackgroundHandler;
 class RulerHandler;
 class DrawHandler;
 class LabeledRectItem;
+class QPushButton;
+class QLabel;
 
 /**
  * @brief 石材切割场景主窗口。
@@ -23,6 +25,7 @@ class LabeledRectItem;
  * - 高精度标尺（1mm = 10像素）
  * - 石板背景图片加载
  * - 矩形绘制与命名功能
+ * - 绘制/选择模式切换
  */
 class GraphicsTestWidget : public QWidget
 {
@@ -37,13 +40,30 @@ public:
     explicit GraphicsTestWidget(QWidget *parent = nullptr);
     ~GraphicsTestWidget() override;
 
+protected:
+    /**
+     * @brief 重写按键事件，支持快捷键切换模式。
+     *
+     * @param event 按键事件。
+     */
+    void keyPressEvent(QKeyEvent *event) override;
+
+private slots:
+    /**
+     * @brief 切换绘制/选择模式。
+     */
+    void toggleDrawSelectMode();
+
 private:
     /**
      * @brief 初始化石材切割场景。
-     *
-     * 创建视图和场景，加载场景配置中的 Handler。
      */
     void initStoneCuttingScene();
+
+    /**
+     * @brief 初始化工具栏。
+     */
+    void initToolBar();
 
     /**
      * @brief 向场景中添加测试图元。
@@ -54,6 +74,11 @@ private:
      * @brief 连接 Handler 信号槽。
      */
     void connectHandlers();
+
+    /**
+     * @brief 更新模式状态显示。
+     */
+    void updateModeDisplay();
 
     /**
      * @brief Qt Designer 生成的 UI 对象指针。
@@ -84,5 +109,15 @@ private:
      * @brief 绘制处理器。
      */
     DrawHandler *m_drawHandler;
+
+    /**
+     * @brief 模式切换按钮。
+     */
+    QPushButton *m_modeButton;
+
+    /**
+     * @brief 模式状态标签。
+     */
+    QLabel *m_modeLabel;
 };
 #endif // GRAPHICSTESTWIDGET_H

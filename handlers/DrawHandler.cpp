@@ -108,6 +108,7 @@ DrawHandler::DrawHandler(DrawMode mode, bool enableNaming,
     , m_rectPen(QColor(0, 100, 200), 2)
     , m_rectBrush(QColor(100, 149, 237, 80))
     , m_linePen(QColor(200, 50, 50), 2)
+    , m_drawingActive(true)
     , m_isDrawing(false)
     , m_rectPreview(nullptr)
     , m_linePreview(nullptr)
@@ -126,6 +127,11 @@ QString DrawHandler::handlerName() const
 
 bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
 {
+    // 绘制模式未激活时，不处理事件，允许选择/拖拽
+    if (!m_drawingActive) {
+        return false;
+    }
+
     if (!m_scene || m_drawMode == DrawMode::None) {
         return false;
     }
@@ -279,6 +285,21 @@ void DrawHandler::setNamePrefix(const QString &prefix)
 QString DrawHandler::namePrefix() const
 {
     return m_namePrefix;
+}
+
+void DrawHandler::setDrawingActive(bool active)
+{
+    m_drawingActive = active;
+}
+
+bool DrawHandler::isDrawingActive() const
+{
+    return m_drawingActive;
+}
+
+void DrawHandler::toggleDrawingMode()
+{
+    m_drawingActive = !m_drawingActive;
 }
 
 void DrawHandler::setRectPen(const QPen &pen)

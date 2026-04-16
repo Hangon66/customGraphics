@@ -253,6 +253,30 @@ public:
      */
     QString namePrefix() const;
 
+    // ========== 绘制激活状态 ==========
+
+    /**
+     * @brief 设置是否激活绘制模式。
+     *
+     * 激活时，鼠标操作用于绘制图形；
+     * 禁用时，鼠标操作用于选择和拖拽已有图形。
+     *
+     * @param active true 激活绘制模式；false 禁用（选择/拖拽模式）。
+     */
+    void setDrawingActive(bool active);
+
+    /**
+     * @brief 判断绘制模式是否激活。
+     *
+     * @return true 绘制模式激活；false 选择/拖拽模式。
+     */
+    bool isDrawingActive() const;
+
+    /**
+     * @brief 切换绘制模式状态。
+     */
+    void toggleDrawingMode();
+
     // ========== 样式设置 ==========
 
     /**
@@ -441,6 +465,14 @@ private:
      * @brief 线条画笔。
      */
     QPen m_linePen;
+
+    /**
+     * @brief 绘制模式是否激活。
+     *
+     * true 绘制模式，鼠标操作用于绘制图形；
+     * false 选择/拖拽模式，鼠标操作用于选择和移动已有图形。
+     */
+    bool m_drawingActive;
 
     /**
      * @brief 是否正在绘制。
