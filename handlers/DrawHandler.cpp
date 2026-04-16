@@ -7,6 +7,94 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QInputDialog>
+#include <QPainter>
+#include <QStyleOptionGraphicsItem>
+#include <QFontMetrics>
+
+// ==================== LabeledRectItem 实现 ====================
+
+LabeledRectItem::LabeledRectItem(const QRectF &rect, QGraphicsItem *parent)
+    : QGraphicsRectItem(rect, parent)
+    , m_labelText()
+    , m_labelFont("Arial", 10)
+    , m_labelColor(Qt::white)
+{
+}
+
+LabeledRectItem::LabeledRectItem(qreal x, qreal y, qreal width, qreal height, QGraphicsItem *parent)
+    : QGraphicsRectItem(x, y, width, height, parent)
+    , m_labelText()
+    , m_labelFont("Arial", 10)
+    , m_labelColor(Qt::white)
+{
+}
+
+void LabeledRectItem::setLabelText(const QString &text)
+{
+    m_labelText = text;
+    update();
+}
+
+QString LabeledRectItem::labelText() const
+{
+    return m_labelText;
+}
+
+void LabeledRectItem::setLabelFont(const QFont &font)
+{
+    m_labelFont = font;
+    update();
+}
+
+QFont LabeledRectItem::labelFont() const
+{
+    return m_labelFont;
+}
+
+void LabeledRectItem::setLabelColor(const QColor &color)
+{
+    m_labelColor = color;
+    update();
+}
+
+QColor LabeledRectItem::labelColor() const
+{
+    return m_labelColor;
+}
+
+void LabeledRectItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    // 先绘制矩形基类
+    QGraphicsRectItem::paint(painter, option, widget);
+
+    // 如果有标签文本，在矩形内部居中绘制
+    if (!m_labelText.isEmpty()) {
+        QRectF rect = this->rect();
+
+        // 设置字体和颜色
+        painter->setFont(m_labelFont);
+        painter->setPen(m_labelColor);
+
+        // 绘制背景（可选，提高可读性）
+        QFontMetrics fm(m_labelFont);
+        QRect textRect = fm.boundingRect(m_labelText);
+        textRect.moveCenter(rect.center().toPoint());
+
+        // 绘制半透明背景
+        QColor bgColor(0, 0, 0, 120);
+        painter->fillRect(textRect.adjusted(-4, -2, 4, 2), bgColor);
+
+        // 绘制文本（居中）
+        painter->drawText(rect, Qt::AlignCenter, m_labelText);
+    }
+}
+
+QRectF LabeledRectItem::boundingRect() const
+{
+    return QGraphicsRectItem::boundingRect();
+}
+
+// ==================== DrawHandler 实现 ====================
 
 DrawHandler::DrawHandler(DrawMode mode, bool enableNaming,
                          const QString &namePrefix, int priority, QObject *parent)
@@ -255,8 +343,12 @@ void DrawHandler::startDrawingRect(const QPointF &scenePos)
         return;
     }
 
-    m_rectPreview = m_scene->addRect(QRectF(scenePos, QSizeF(0, 0)), m_rectPen, m_rectBrush);
+    // 使用 LabeledRectItem 代替普通矩形
+    m_rectPreview = new LabeledRectItem(QRectF(scenePos, QSizeF(0, 0)));
+    m_rectPreview->setPen(m_rectPen);
+    m_rectPreview->setBrush(m_rectBrush);
     m_rectPreview->setZValue(100);
+    m_scene->addItem(m_rectPreview);
 }
 
 void DrawHandler::startDrawingLine(const QPointF &scenePos)
@@ -324,6 +416,9 @@ void DrawHandler::finishRect()
     m_rectPreview->setData(0, "DrawShape");
     m_rectPreview->setData(1, static_cast<int>(ShapeType::Rect));
     m_rectPreview->setData(2, name);
+
+    // 设置矩形内的标签文本
+    m_rectPreview->setLabelText(name);
 
     // 发送信号
     emit shapeCreated(m_rectPreview, ShapeType::Rect, name);

@@ -14,6 +14,7 @@ class CustomGraphicsScene;
 class BackgroundHandler;
 class RulerHandler;
 class DrawHandler;
+class LabeledRectItem;
 
 /**
  * @brief 石材切割场景主窗口。

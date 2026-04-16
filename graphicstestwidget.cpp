@@ -81,29 +81,36 @@ void GraphicsTestWidget::initStoneCuttingScene()
 void GraphicsTestWidget::addTestItems()
 {
     // 添加示例石板区域
-    auto *stoneRect = m_scene->addRect(0, 0, 600, 400,
-                                        QPen(Qt::darkGray, 2),
-                                        QBrush(QColor(200, 200, 200, 50)));
+    auto *stoneRect = new LabeledRectItem(0, 0, 600, 400);
+    stoneRect->setPen(QPen(Qt::darkGray, 2));
+    stoneRect->setBrush(QBrush(QColor(200, 200, 200, 50)));
     stoneRect->setFlag(QGraphicsItem::ItemIsSelectable);
     stoneRect->setData(0, "StoneArea");
     stoneRect->setData(2, "石板区域");
+    stoneRect->setLabelText("石板区域");
+    stoneRect->setLabelColor(Qt::darkGray);
+    m_scene->addItem(stoneRect);
 
     // 添加已有切割区域示例
-    auto *cutArea1 = m_scene->addRect(50, 50, 150, 100,
-                                       QPen(QColor(0, 100, 200), 2),
-                                       QBrush(QColor(100, 149, 237, 80)));
+    auto *cutArea1 = new LabeledRectItem(50, 50, 150, 100);
+    cutArea1->setPen(QPen(QColor(0, 100, 200), 2));
+    cutArea1->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea1->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea1->setFlag(QGraphicsItem::ItemIsMovable);
     cutArea1->setData(0, "CutArea");
     cutArea1->setData(2, "切割区域_1");
+    cutArea1->setLabelText("切割区域_1");
+    m_scene->addItem(cutArea1);
 
-    auto *cutArea2 = m_scene->addRect(250, 150, 200, 150,
-                                       QPen(QColor(0, 100, 200), 2),
-                                       QBrush(QColor(100, 149, 237, 80)));
+    auto *cutArea2 = new LabeledRectItem(250, 150, 200, 150);
+    cutArea2->setPen(QPen(QColor(0, 100, 200), 2));
+    cutArea2->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea2->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea2->setFlag(QGraphicsItem::ItemIsMovable);
     cutArea2->setData(0, "CutArea");
     cutArea2->setData(2, "切割区域_2");
+    cutArea2->setLabelText("切割区域_2");
+    m_scene->addItem(cutArea2);
 
     // 添加尺寸标注文本
     auto *dimText = m_scene->addText("600mm x 400mm", QFont("Arial", 12));

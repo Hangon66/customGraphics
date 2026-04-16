@@ -6,11 +6,116 @@
 #include <QColor>
 #include <QPen>
 #include <QBrush>
+#include <QGraphicsRectItem>
+#include <QFont>
 
 class QGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
 class QGraphicsLineItem;
+
+/**
+ * @brief 带标签的矩形图元类。
+ *
+ * 继承自 QGraphicsRectItem，在矩形内部绘制标签文本。
+ * 主要用于石材切割场景中显示切割区域的名称。
+ */
+class LabeledRectItem : public QGraphicsRectItem
+{
+public:
+    /**
+     * @brief 构造函数。
+     *
+     * @param rect 矩形边界。
+     * @param parent 父图元。
+     */
+    explicit LabeledRectItem(const QRectF &rect, QGraphicsItem *parent = nullptr);
+
+    /**
+     * @brief 构造函数。
+     *
+     * @param x 矩形左上角 x 坐标。
+     * @param y 矩形左上角 y 坐标。
+     * @param width 矩形宽度。
+     * @param height 矩形高度。
+     * @param parent 父图元。
+     */
+    LabeledRectItem(qreal x, qreal y, qreal width, qreal height, QGraphicsItem *parent = nullptr);
+
+    /**
+     * @brief 设置标签文本。
+     *
+     * @param text 标签文本内容。
+     */
+    void setLabelText(const QString &text);
+
+    /**
+     * @brief 获取标签文本。
+     *
+     * @return 当前标签文本。
+     */
+    QString labelText() const;
+
+    /**
+     * @brief 设置标签字体。
+     *
+     * @param font 字体对象。
+     */
+    void setLabelFont(const QFont &font);
+
+    /**
+     * @brief 获取标签字体。
+     *
+     * @return 当前字体对象。
+     */
+    QFont labelFont() const;
+
+    /**
+     * @brief 设置标签颜色。
+     *
+     * @param color 文本颜色。
+     */
+    void setLabelColor(const QColor &color);
+
+    /**
+     * @brief 获取标签颜色。
+     *
+     * @return 当前文本颜色。
+     */
+    QColor labelColor() const;
+
+    /**
+     * @brief 重写绘制方法，在矩形内绘制标签。
+     *
+     * @param painter 绘制器。
+     * @param option 样式选项。
+     * @param widget 父控件。
+     */
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
+
+    /**
+     * @brief 重写边界矩形计算，考虑标签文本。
+     *
+     * @return 图元边界矩形。
+     */
+    QRectF boundingRect() const override;
+
+private:
+    /**
+     * @brief 标签文本内容。
+     */
+    QString m_labelText;
+
+    /**
+     * @brief 标签字体。
+     */
+    QFont m_labelFont;
+
+    /**
+     * @brief 标签文本颜色。
+     */
+    QColor m_labelColor;
+};
 
 /**
  * @brief 图形绘制处理器。
@@ -350,7 +455,7 @@ private:
     /**
      * @brief 矩形预览图元。
      */
-    QGraphicsRectItem *m_rectPreview;
+    LabeledRectItem *m_rectPreview;
 
     /**
      * @brief 线条预览图元。
