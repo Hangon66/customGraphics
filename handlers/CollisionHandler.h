@@ -4,9 +4,100 @@
 #include <QRectF>
 #include <QPointF>
 #include <QList>
+#include <QSet>
+#include <QPair>
 
 class QGraphicsItem;
 class QGraphicsScene;
+
+/**
+ * @brief 图元形状类型枚举。
+ *
+ * 用于碰撞检测时区分不同类型的图元。
+ */
+enum class CollisionShapeType
+{
+    Rect,   ///< 矩形
+    Line,   ///< 线条
+    Unknown ///< 未知类型
+};
+
+/**
+ * @brief 碰撞配置类。
+ *
+ * 定义哪些图元类型对之间可以发生碰撞。
+ * 例如：仅矩形间碰撞、矩形与线条都碰撞等。
+ */
+class CollisionConfig
+{
+public:
+    /**
+     * @brief 构造函数，默认允许所有类型碰撞。
+     */
+    CollisionConfig();
+
+    /**
+     * @brief 析构函数。
+     */
+    ~CollisionConfig();
+
+    /**
+     * @brief 设置指定类型对是否允许碰撞。
+     *
+     * @param type1 第一个图元类型。
+     * @param type2 第二个图元类型。
+     * @param enabled true 允许碰撞；false 禁止碰撞。
+     */
+    void setCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2, bool enabled);
+
+    /**
+     * @brief 检查指定类型对是否允许碰撞。
+     *
+     * @param type1 第一个图元类型。
+     * @param type2 第二个图元类型。
+     * @return true 允许碰撞；false 禁止碰撞。
+     */
+    bool isCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2) const;
+
+    /**
+     * @brief 启用所有碰撞。
+     */
+    void enableAllCollisions();
+
+    /**
+     * @brief 禁用所有碰撞。
+     */
+    void disableAllCollisions();
+
+    /**
+     * @brief 仅启用矩形间碰撞。
+     *
+     * 线条不参与任何碰撞检测。
+     */
+    void enableRectOnlyCollision();
+
+    /**
+     * @brief 仅启用线条间碰撞。
+     *
+     * 矩形不参与任何碰撞检测。
+     */
+    void enableLineOnlyCollision();
+
+    /**
+     * @brief 启用矩形和线条间的所有碰撞。
+     *
+     * 包括：矩形-矩形、线条-线条、矩形-线条。
+     */
+    void enableRectAndLineCollision();
+
+private:
+    /**
+     * @brief 存储允许碰撞的类型对。
+     *
+     * 使用 QPair 存储类型对，(type1, type2) 和 (type2, type1) 视为相同。
+     */
+    QSet<QPair<int, int>> m_enabledPairs;
+};
 
 /**
  * @brief 碰撞检测处理器。
@@ -33,10 +124,12 @@ public:
      * @param scene 场景对象。
      * @param point 要检查的点（场景坐标）。
      * @param excludeItem 排除的图元（通常是被拖动的图元自身）。
+     * @param config 碰撞配置（可选）。
      * @return 如果点在任何图元内，返回该图元；否则返回 nullptr。
      */
     static QGraphicsItem* pointInAnyItem(QGraphicsScene *scene, const QPointF &point,
-                                          QGraphicsItem *excludeItem = nullptr);
+                                          QGraphicsItem *excludeItem = nullptr,
+                                          const CollisionConfig *config = nullptr);
 
     /**
      * @brief 检查矩形是否与任何可碰撞图元重叠。
@@ -44,10 +137,12 @@ public:
      * @param scene 场景对象。
      * @param rect 要检查的矩形（场景坐标）。
      * @param excludeItem 排除的图元。
+     * @param config 碰撞配置（可选）。
      * @return 如果与任何图元重叠，返回该图元；否则返回 nullptr。
      */
     static QGraphicsItem* rectOverlapsAnyItem(QGraphicsScene *scene, const QRectF &rect,
-                                               QGraphicsItem *excludeItem = nullptr);
+                                               QGraphicsItem *excludeItem = nullptr,
+                                               const CollisionConfig *config = nullptr);
 
     /**
      * @brief 计算图元在指定方向上可以移动的最大距离（受其他图元阻挡）。
@@ -73,7 +168,7 @@ public:
                                                const QRectF &obstacleRect);
 
     /**
-     * @brief 判断图元是否参与碰撞检测。
+     * @brief 判断图元是否参与碰撞检测（不考虑配置）。
      *
      * 图元需设置 ItemIsMovable 标志才参与碰撞。
      *
@@ -81,6 +176,26 @@ public:
      * @return true 参与碰撞；false 不参与。
      */
     static bool isCollisionItem(QGraphicsItem *item);
+
+    /**
+     * @brief 判断图元是否参与碰撞检测（考虑配置）。
+     *
+     * @param item 图元对象。
+     * @param sourceType 源图元类型（被拖动或正在绘制的图元类型）。
+     * @param config 碰撞配置。
+     * @return true 参与碰撞；false 不参与。
+     */
+    static bool isCollisionItemWithConfig(QGraphicsItem *item,
+                                           CollisionShapeType sourceType,
+                                           const CollisionConfig &config);
+
+    /**
+     * @brief 获取图元的碰撞类型。
+     *
+     * @param item 图元对象。
+     * @return 图元的碰撞类型。
+     */
+    static CollisionShapeType getShapeType(QGraphicsItem *item);
 
 private:
     /**

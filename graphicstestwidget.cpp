@@ -6,6 +6,7 @@
 #include "handlers/BackgroundHandler.h"
 #include "handlers/RulerHandler.h"
 #include "handlers/DrawHandler.h"
+#include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
 
 #include <QVBoxLayout>
@@ -62,6 +63,12 @@ void GraphicsTestWidget::initStoneCuttingScene()
 
     // 创建场景
     m_scene = new CustomGraphicsScene(this);
+
+    // 配置碰撞检测：仅启用矩形间碰撞
+    CollisionConfig collisionConfig;
+    collisionConfig.enableRectOnlyCollision();
+    m_scene->setCollisionConfig(collisionConfig);
+    m_scene->setCollisionEnabled(true);
 
     // 创建视图
     m_view = new CustomGraphicsView(this);

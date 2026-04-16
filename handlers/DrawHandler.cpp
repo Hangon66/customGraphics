@@ -1,6 +1,7 @@
 #include "DrawHandler.h"
 #include "CollisionHandler.h"
 #include "../commands/ShapeCommands.h"
+#include "../view/CustomGraphicsScene.h"
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
@@ -256,9 +257,22 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
     QPointF scenePos = view->mapToScene(event->pos());
 
     // 碰撞检测：检查起点是否在其他图元内部
-    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, scenePos, nullptr)) {
-        // 起点在其他图元内，不开始绘制
-        return false;
+    if (m_scene) {
+        // 获取碰撞配置（如果场景支持）
+        const CollisionConfig *config = nullptr;
+        CollisionConfig defaultConfig;
+        CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
+        if (customScene) {
+            config = &customScene->collisionConfig();
+        } else {
+            defaultConfig.enableAllCollisions();
+            config = &defaultConfig;
+        }
+
+        if (CollisionHandler::pointInAnyItem(m_scene, scenePos, nullptr, config)) {
+            // 起点在其他图元内，不开始绘制
+            return false;
+        }
     }
 
     // 根据当前模式决定绘制类型
@@ -551,9 +565,20 @@ void DrawHandler::finishRect()
     // 获取场景坐标系中的矩形
     QRectF sceneRect = m_rectPreview->sceneBoundingRect();
 
+    // 获取碰撞配置
+    const CollisionConfig *config = nullptr;
+    CollisionConfig defaultConfig;
+    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
+    if (customScene) {
+        config = &customScene->collisionConfig();
+    } else {
+        defaultConfig.enableAllCollisions();
+        config = &defaultConfig;
+    }
+
     // 碰撞检测：检查终点是否在其他图元内部
     QPointF endPoint = sceneRect.bottomRight();
-    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, endPoint, m_rectPreview)) {
+    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, endPoint, m_rectPreview, config)) {
         // 终点在其他图元内，取消创建
         removePreviewItem();
         m_isDrawing = false;
@@ -562,7 +587,7 @@ void DrawHandler::finishRect()
     }
 
     // 碰撞检测：检查矩形是否与其他图元重叠
-    if (m_scene && CollisionHandler::rectOverlapsAnyItem(m_scene, sceneRect, m_rectPreview)) {
+    if (m_scene && CollisionHandler::rectOverlapsAnyItem(m_scene, sceneRect, m_rectPreview, config)) {
         // 矩形与其他图元重叠，取消创建
         removePreviewItem();
         m_isDrawing = false;

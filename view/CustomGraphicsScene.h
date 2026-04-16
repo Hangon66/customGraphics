@@ -4,6 +4,7 @@
 #include <QGraphicsScene>
 #include <QColor>
 #include <QHash>
+#include "../handlers/CollisionHandler.h"
 
 class QGraphicsItem;
 
@@ -86,6 +87,36 @@ public:
      * @param color 背景颜色。
      */
     void setBackgroundColor(const QColor &color);
+
+    /**
+     * @brief 设置碰撞配置。
+     *
+     * 用于配置哪些图元类型对之间可以发生碰撞。
+     *
+     * @param config 碰撞配置对象。
+     */
+    void setCollisionConfig(const CollisionConfig &config);
+
+    /**
+     * @brief 获取当前碰撞配置。
+     *
+     * @return 当前碰撞配置的引用。
+     */
+    const CollisionConfig& collisionConfig() const;
+
+    /**
+     * @brief 设置是否启用碰撞阻挡。
+     *
+     * @param enabled true 启用；false 禁用。
+     */
+    void setCollisionEnabled(bool enabled);
+
+    /**
+     * @brief 获取碰撞阻挡是否启用。
+     *
+     * @return true 已启用；false 已禁用。
+     */
+    bool isCollisionEnabled() const;
 
 signals:
     /**
@@ -194,6 +225,13 @@ private:
      * key 为图元指针，value 为位置。
      */
     QHash<QGraphicsItem*, QPointF> m_itemOldPositions;
+
+    /**
+     * @brief 碰撞配置对象。
+     *
+     * 定义哪些图元类型对之间可以发生碰撞。
+     */
+    CollisionConfig m_collisionConfig;
 };
 
 #endif // CUSTOMGRAPHICSSCENE_H

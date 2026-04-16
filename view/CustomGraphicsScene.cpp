@@ -16,7 +16,7 @@ CustomGraphicsScene::CustomGraphicsScene(QObject *parent)
     , m_fineGridColor(230, 230, 230)
     , m_coarseGridColor(200, 200, 200)
     , m_backgroundColor(Qt::white)
-    , m_collisionEnabled(true)
+    , m_collisionEnabled(false)  // 默认不开启碰撞
 {
     setSceneRect(-5000, -5000, 10000, 10000);
 }
@@ -71,6 +71,26 @@ void CustomGraphicsScene::setBackgroundColor(const QColor &color)
 {
     m_backgroundColor = color;
     invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
+}
+
+void CustomGraphicsScene::setCollisionConfig(const CollisionConfig &config)
+{
+    m_collisionConfig = config;
+}
+
+const CollisionConfig& CustomGraphicsScene::collisionConfig() const
+{
+    return m_collisionConfig;
+}
+
+void CustomGraphicsScene::setCollisionEnabled(bool enabled)
+{
+    m_collisionEnabled = enabled;
+}
+
+bool CustomGraphicsScene::isCollisionEnabled() const
+{
+    return m_collisionEnabled;
 }
 
 void CustomGraphicsScene::drawBackground(QPainter *painter, const QRectF &rect)
@@ -205,11 +225,15 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             continue;
         }
 
-        // 获取场景中其他可能阻挡的图元
+        // 获取源图元类型
+        CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+
+        // 获取场景中其他可能阻挡的图元（考虑碰撞配置）
         QList<QGraphicsItem*> allItems = QGraphicsScene::items();
         QList<QGraphicsItem*> obstacles;
         for (QGraphicsItem *other : allItems) {
-            if (!selected.contains(other) && CollisionHandler::isCollisionItem(other)) {
+            if (!selected.contains(other) &&
+                CollisionHandler::isCollisionItemWithConfig(other, sourceType, m_collisionConfig)) {
                 obstacles.append(other);
             }
         }
