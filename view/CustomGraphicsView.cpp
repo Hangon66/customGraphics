@@ -28,6 +28,9 @@ CustomGraphicsView::CustomGraphicsView(QWidget *parent)
     // 设置焦点策略，确保能够接收键盘事件
     setFocusPolicy(Qt::StrongFocus);
     setFocus();
+
+    // 限制撤销栈大小，防止内存无限增长
+    m_undoStack->setUndoLimit(100);
 }
 
 CustomGraphicsView *CustomGraphicsView::createDefaultView(QWidget *parent)
