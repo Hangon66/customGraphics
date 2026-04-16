@@ -242,28 +242,24 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             continue;
         }
 
-        // 检查新位置是否与障碍物碰撞
-        // 使用 shape() 进行碰撞检测，确保不包含标签扩展区域
-        for (QGraphicsItem *obstacle : obstacles) {
-            // 使用 collidesWithItem 进行精确碰撞检测（基于 shape()）
-            // 先临时移动图元到新位置检测碰撞
-            item->setPos(newPos);
-            bool collides = item->collidesWithItem(obstacle, Qt::IntersectsItemShape);
-            
-            if (collides) {
-                // 发生碰撞，使用 shape() 的边界矩形计算阻挡位置
-                QRectF itemShapeRect = item->shape().boundingRect().translated(newPos);
-                QRectF obstacleShapeRect = obstacle->shape().boundingRect().translated(obstacle->pos());
-                
-                // 计算沿移动方向的阻挡位置
-                QPointF blockedPos = calculateBlockedPosition(
-                    item->shape().boundingRect(), oldPos, newPos, obstacleShapeRect);
+        // 使用 shape() 的边界矩形进行碰撞检测，确保不包含标签扩展区域
+        QRectF itemShapeRect = item->shape().boundingRect();
+        QRectF newItemRect = itemShapeRect.translated(newPos);
 
-                // 设置到阻挡位置
+        for (QGraphicsItem *obstacle : obstacles) {
+            QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+
+            if (newItemRect.intersects(obstacleRect)) {
+                // 发生碰撞，计算沿移动方向的阻挡位置
+                QPointF blockedPos = calculateBlockedPosition(
+                    itemShapeRect, oldPos, newPos, obstacleRect);
+
+                // 设置阻挡位置
                 item->setPos(blockedPos);
 
                 // 更新位置用于后续障碍物检测
                 newPos = blockedPos;
+                newItemRect = itemShapeRect.translated(newPos);
             }
         }
     }
@@ -272,39 +268,112 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 QPointF CustomGraphicsScene::calculateBlockedPosition(
     const QRectF &itemLocalRect, const QPointF &oldPos, const QPointF &newPos, const QRectF &obstacleRect)
 {
-    // 计算移动方向
+    // 计算移动方向和距离
     qreal dx = newPos.x() - oldPos.x();
     qreal dy = newPos.y() - oldPos.y();
 
-    // 图元在新位置的场景边界
-    QRectF itemSceneRect = itemLocalRect.translated(newPos);
+    // 图元在 oldPos 的场景边界
+    QRectF oldSceneRect = itemLocalRect.translated(oldPos);
+    // 图元在 newPos 的场景边界
+    QRectF newSceneRect = itemLocalRect.translated(newPos);
 
-    // 阻挡后的图元位置（初始为新位置）
-    QPointF blockedPos = newPos;
+    // 微小偏移量，避免浮点精度导致的粘连
+    const qreal epsilon = 0;
+
+    // 阻挡后的图元位置（初始为 oldPos）
+    QPointF blockedPos = oldPos;
+
+    // 检查 oldPos 是否已经与障碍物重叠
+    if (oldSceneRect.intersects(obstacleRect)) {
+        // 根据移动方向，将图元推出障碍物
+        if (qAbs(dx) >= qAbs(dy)) {
+            // 主要是水平移动
+            if (dx > 0) {
+                // 向右移动，从左侧推出
+                qreal pushX = obstacleRect.left() - oldSceneRect.right() - epsilon;
+                blockedPos.setX(oldPos.x() + pushX);
+            } else if (dx < 0) {
+                // 向左移动，从右侧推出
+                qreal pushX = obstacleRect.right() - oldSceneRect.left() + epsilon;
+                blockedPos.setX(oldPos.x() + pushX);
+            } else {
+                // dx == 0，选择最小推出距离
+                qreal pushLeft = obstacleRect.left() - oldSceneRect.right() - epsilon;
+                qreal pushRight = obstacleRect.right() - oldSceneRect.left() + epsilon;
+                if (qAbs(pushLeft) < qAbs(pushRight)) {
+                    blockedPos.setX(oldPos.x() + pushLeft);
+                } else {
+                    blockedPos.setX(oldPos.x() + pushRight);
+                }
+            }
+            blockedPos.setY(newPos.y());
+        } else {
+            // 主要是垂直移动
+            if (dy > 0) {
+                // 向下移动，从上方推出
+                qreal pushY = obstacleRect.top() - oldSceneRect.bottom() - epsilon;
+                blockedPos.setY(oldPos.y() + pushY);
+            } else if (dy < 0) {
+                // 向上移动，从下方推出
+                qreal pushY = obstacleRect.bottom() - oldSceneRect.top() + epsilon;
+                blockedPos.setY(oldPos.y() + pushY);
+            } else {
+                // dy == 0，选择最小推出距离
+                qreal pushUp = obstacleRect.top() - oldSceneRect.bottom() - epsilon;
+                qreal pushDown = obstacleRect.bottom() - oldSceneRect.top() + epsilon;
+                if (qAbs(pushUp) < qAbs(pushDown)) {
+                    blockedPos.setY(oldPos.y() + pushUp);
+                } else {
+                    blockedPos.setY(oldPos.y() + pushDown);
+                }
+            }
+            blockedPos.setX(newPos.x());
+        }
+        return blockedPos;
+    }
 
     // 根据移动方向，计算图元可以移动到的最远位置
-    // 使图元与障碍物刚好接触但不重叠
     if (qAbs(dx) >= qAbs(dy)) {
         // 主要是水平移动
         if (dx > 0) {
-            // 向右移动，图元右边缘贴到障碍物左边缘
-            qreal offset = obstacleRect.left() - itemSceneRect.right();
-            blockedPos.setX(newPos.x() + offset);
-        } else {
-            // 向左移动，图元左边缘贴到障碍物右边缘
-            qreal offset = obstacleRect.right() - itemSceneRect.left();
-            blockedPos.setX(newPos.x() + offset);
+            // 向右移动，图元右边缘不能超过障碍物左边缘
+            qreal maxRight = obstacleRect.left() - epsilon;
+            qreal currentRight = oldSceneRect.right();
+            if (currentRight < maxRight) {
+                qreal maxDx = maxRight - currentRight;
+                blockedPos.setX(oldPos.x() + qMin(dx, maxDx));
+            }
+            blockedPos.setY(newPos.y());
+        } else if (dx < 0) {
+            // 向左移动，图元左边缘不能超过障碍物右边缘
+            qreal minLeft = obstacleRect.right() + epsilon;
+            qreal currentLeft = oldSceneRect.left();
+            if (currentLeft > minLeft) {
+                qreal maxDx = minLeft - currentLeft;
+                blockedPos.setX(oldPos.x() + qMax(dx, maxDx));
+            }
+            blockedPos.setY(newPos.y());
         }
     } else {
         // 主要是垂直移动
         if (dy > 0) {
-            // 向下移动，图元下边缘贴到障碍物上边缘
-            qreal offset = obstacleRect.top() - itemSceneRect.bottom();
-            blockedPos.setY(newPos.y() + offset);
-        } else {
-            // 向上移动，图元上边缘贴到障碍物下边缘
-            qreal offset = obstacleRect.bottom() - itemSceneRect.top();
-            blockedPos.setY(newPos.y() + offset);
+            // 向下移动，图元下边缘不能超过障碍物上边缘
+            qreal maxBottom = obstacleRect.top() - epsilon;
+            qreal currentBottom = oldSceneRect.bottom();
+            if (currentBottom < maxBottom) {
+                qreal maxDy = maxBottom - currentBottom;
+                blockedPos.setY(oldPos.y() + qMin(dy, maxDy));
+            }
+            blockedPos.setX(newPos.x());
+        } else if (dy < 0) {
+            // 向上移动，图元上边缘不能超过障碍物下边缘
+            qreal minTop = obstacleRect.bottom() + epsilon;
+            qreal currentTop = oldSceneRect.top();
+            if (currentTop > minTop) {
+                qreal maxDy = minTop - currentTop;
+                blockedPos.setY(oldPos.y() + qMax(dy, maxDy));
+            }
+            blockedPos.setX(newPos.x());
         }
     }
 
