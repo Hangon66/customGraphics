@@ -119,11 +119,37 @@ protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 
     /**
+     * @brief 处理鼠标移动事件，实现碰撞阻挡。
+     *
+     * @param event 鼠标事件。
+     */
+    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+
+    /**
      * @brief 处理鼠标释放事件，检测图元移动并发送信号。
      *
      * @param event 鼠标事件。
      */
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
+    /**
+     * @brief 是否启用碰撞阻挡。
+     *
+     * true 启用碰撞阻挡；false 允许自由移动。
+     */
+    bool m_collisionEnabled;
+
+    /**
+     * @brief 计算图元被障碍物阻挡后的位置。
+     *
+     * @param itemRect 图元的边界矩形。
+     * @param currentPos 图元当前位置。
+     * @param targetPos 图元目标位置。
+     * @param obstacleRect 障碍物边界。
+     * @return 阻挡后的位置。
+     */
+    QPointF calculateBlockedPosition(const QRectF &itemRect, const QPointF &currentPos,
+                                      const QPointF &targetPos, const QRectF &obstacleRect);
 
 private:
     /**

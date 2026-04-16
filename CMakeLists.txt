@@ -39,6 +39,8 @@ qt_add_executable(customGraphics
     handlers/PanHandler.cpp
     handlers/RubberBandHandler.h
     handlers/RubberBandHandler.cpp
+    handlers/CollisionHandler.h
+    handlers/CollisionHandler.cpp
 )
 
 target_link_libraries(customGraphics

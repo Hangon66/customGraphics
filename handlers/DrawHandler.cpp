@@ -1,4 +1,5 @@
 #include "DrawHandler.h"
+#include "CollisionHandler.h"
 #include "../commands/ShapeCommands.h"
 
 #include <QGraphicsView>
@@ -253,6 +254,12 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
     }
 
     QPointF scenePos = view->mapToScene(event->pos());
+
+    // 碰撞检测：检查起点是否在其他图元内部
+    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, scenePos, nullptr)) {
+        // 起点在其他图元内，不开始绘制
+        return false;
+    }
 
     // 根据当前模式决定绘制类型
     ShapeType drawType = m_currentShapeType;
@@ -538,6 +545,28 @@ void DrawHandler::finishRect()
     if (rect.width() < 5 || rect.height() < 5) {
         removePreviewItem();
         m_isDrawing = false;
+        return;
+    }
+
+    // 获取场景坐标系中的矩形
+    QRectF sceneRect = m_rectPreview->sceneBoundingRect();
+
+    // 碰撞检测：检查终点是否在其他图元内部
+    QPointF endPoint = sceneRect.bottomRight();
+    if (m_scene && CollisionHandler::pointInAnyItem(m_scene, endPoint, m_rectPreview)) {
+        // 终点在其他图元内，取消创建
+        removePreviewItem();
+        m_isDrawing = false;
+        qDebug() << "终点在其他图元内，取消绘制";
+        return;
+    }
+
+    // 碰撞检测：检查矩形是否与其他图元重叠
+    if (m_scene && CollisionHandler::rectOverlapsAnyItem(m_scene, sceneRect, m_rectPreview)) {
+        // 矩形与其他图元重叠，取消创建
+        removePreviewItem();
+        m_isDrawing = false;
+        qDebug() << "矩形与其他图元重叠，取消绘制";
         return;
     }
 
