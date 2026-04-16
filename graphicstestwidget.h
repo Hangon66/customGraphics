@@ -40,6 +40,20 @@ public:
     explicit GraphicsTestWidget(QWidget *parent = nullptr);
     ~GraphicsTestWidget() override;
 
+    /**
+     * @brief 获取自定义图形视图实例。
+     *
+     * @return CustomGraphicsView 指针。
+     */
+    CustomGraphicsView* view() const { return m_view; }
+
+    /**
+     * @brief 获取自定义图形场景实例。
+     *
+     * @return CustomGraphicsScene 指针。
+     */
+    CustomGraphicsScene* scene() const { return m_scene; }
+
 protected:
     /**
      * @brief 重写按键事件，支持快捷键切换模式。

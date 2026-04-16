@@ -176,6 +176,11 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
     // 计算刻度间隔
     double tickInterval = calculateTickInterval(pixelsPerUnit);
 
+    // 防止极小间隔导致的性能问题
+    if (tickInterval < 0.001) {
+        tickInterval = 0.001;
+    }
+
     // 起始刻度值
     double startUnit = qFloor(visibleRect.left() / m_unitPixel / tickInterval) * tickInterval;
     double endUnit = qCeil(visibleRect.right() / m_unitPixel / tickInterval) * tickInterval;
@@ -186,7 +191,13 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
     painter->drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom());
 
     // 绘制刻度
-    for (double unit = startUnit; unit <= endUnit; unit += tickInterval / 5) {
+    double step = tickInterval / 5.0;
+    int maxTicks = 1000;  // 防止过多刻度导致的性能问题
+    int tickCount = 0;
+
+    for (double unit = startUnit; unit <= endUnit && tickCount < maxTicks; unit += step) {
+        tickCount++;
+
         double sceneX = unit * m_unitPixel;
         int viewX = view->mapFromScene(QPointF(sceneX, 0)).x();
 
@@ -195,8 +206,12 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
         }
 
         // 判断是主刻度还是次刻度
-        bool isMajor = qFuzzyCompare(fmod(unit, tickInterval), 0.0) ||
-                       qFuzzyCompare(fmod(unit, tickInterval), tickInterval);
+        // 使用整数倍判断避免浮点精度问题
+        double ratio = unit / tickInterval;
+        int ratioInt = qRound(ratio);
+        // 使用相对容差，对大数值更友好
+        double epsilon = qMax(1e-9, qAbs(ratio) * 1e-9);
+        bool isMajor = qAbs(ratio - ratioInt) < epsilon;
 
         int tickHeight = isMajor ? rect.height() - 4 : rect.height() / 2;
 
@@ -228,6 +243,11 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
     // 计算刻度间隔
     double tickInterval = calculateTickInterval(pixelsPerUnit);
 
+    // 防止极小间隔导致的性能问题
+    if (tickInterval < 0.001) {
+        tickInterval = 0.001;
+    }
+
     // 起始刻度值
     double startUnit = qFloor(visibleRect.top() / m_unitPixel / tickInterval) * tickInterval;
     double endUnit = qCeil(visibleRect.bottom() / m_unitPixel / tickInterval) * tickInterval;
@@ -238,7 +258,13 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
     painter->drawLine(rect.right(), rect.top(), rect.right(), rect.bottom());
 
     // 绘制刻度
-    for (double unit = startUnit; unit <= endUnit; unit += tickInterval / 5) {
+    double step = tickInterval / 5.0;
+    int maxTicks = 1000;  // 防止过多刻度导致的性能问题
+    int tickCount = 0;
+
+    for (double unit = startUnit; unit <= endUnit && tickCount < maxTicks; unit += step) {
+        tickCount++;
+
         double sceneY = unit * m_unitPixel;
         int viewY = view->mapFromScene(QPointF(0, sceneY)).y();
 
@@ -247,8 +273,12 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
         }
 
         // 判断是主刻度还是次刻度
-        bool isMajor = qFuzzyCompare(fmod(unit, tickInterval), 0.0) ||
-                       qFuzzyCompare(fmod(unit, tickInterval), tickInterval);
+        // 使用整数倍判断避免浮点精度问题
+        double ratioY = unit / tickInterval;
+        int ratioIntY = qRound(ratioY);
+        // 使用相对容差，对大数值更友好
+        double epsilon = qMax(1e-9, qAbs(ratioY) * 1e-9);
+        bool isMajor = qAbs(ratioY - ratioIntY) < epsilon;
 
         int tickWidth = isMajor ? rect.width() - 4 : rect.width() / 2;
 
@@ -268,11 +298,21 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
 
 double RulerHandler::calculateTickInterval(double pixelsPerUnit) const
 {
+    // 防止除零或极小值
+    if (pixelsPerUnit <= 0.0001) {
+        return 1.0;
+    }
+
     // 目标：主刻度之间约 50-100 像素
     const double targetPixelGap = 75.0;
 
     // 计算基础间隔
     double baseInterval = targetPixelGap / pixelsPerUnit;
+
+    // 防止极小值导致的计算问题
+    if (baseInterval < 0.001) {
+        return 0.001;  // 最小刻度间隔 0.001
+    }
 
     // 规范化为 1, 2, 5 的倍数
     double magnitude = qPow(10, qFloor(qLn(baseInterval) / qLn(10)));
@@ -289,16 +329,27 @@ double RulerHandler::calculateTickInterval(double pixelsPerUnit) const
 
 QString RulerHandler::formatTickLabel(double value) const
 {
-    if (qAbs(value) < 0.0001) {
+    // 处理极大或极小的值
+    if (!qIsFinite(value)) {
+        return QStringLiteral("0");
+    }
+
+    double absValue = qAbs(value);
+
+    if (absValue < 0.0001) {
         return QStringLiteral("0");
     }
 
     // 根据值大小选择合适的格式
-    if (qAbs(value) >= 1000) {
+    if (absValue >= 1000000) {
+        return QString::number(value, 'e', 2);  // 科学计数法
+    } else if (absValue >= 1000) {
         return QString::number(value, 'f', 0);
-    } else if (qAbs(value) >= 1) {
+    } else if (absValue >= 1) {
         return QString::number(value, 'f', 1);
-    } else {
+    } else if (absValue >= 0.01) {
         return QString::number(value, 'f', 2);
+    } else {
+        return QString::number(value, 'f', 3);  // 更小的值显示更多小数位
     }
 }

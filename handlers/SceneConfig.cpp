@@ -18,7 +18,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
 
     // 标尺配置 - 高精度要求
     config.enableRuler = true;
-    config.rulerUnitPixel = 10.0;
+    config.rulerUnitPixel = 1.0;  // 1像素 = 1mm，与标注一致
     config.rulerUnitName = "mm";
 
     // 绘制配置
@@ -36,7 +36,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
         handlers << new ZoomHandler(100);
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
-        handlers << new RulerHandler(10.0, "mm");
+        handlers << new RulerHandler(1.0, "mm");
         handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Cut");
         return handlers;
     };
