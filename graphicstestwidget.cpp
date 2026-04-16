@@ -171,7 +171,7 @@ void GraphicsTestWidget::addTestItems()
     auto *stoneRect = new LabeledRectItem(0, 0, 600, 400);
     stoneRect->setPen(QPen(Qt::darkGray, 2));
     stoneRect->setBrush(QBrush(QColor(200, 200, 200, 50)));
-    stoneRect->setFlag(QGraphicsItem::ItemIsSelectable);
+    // stoneRect->setFlag(QGraphicsItem::ItemIsSelectable);
     stoneRect->setData(0, "StoneArea");
     stoneRect->setData(2, "石板区域");
     stoneRect->setLabelText("石板区域");

@@ -207,7 +207,7 @@ bool DrawHandler::handleMouseRelease(QGraphicsView *view, QMouseEvent *event)
         finishLine();
     }
 
-    m_isDrawing = false;
+    // 注意：finishRect/finishLine 已经设置了 m_isDrawing = false
     return true;
 }
 
@@ -411,6 +411,7 @@ void DrawHandler::finishRect()
     QRectF rect = m_rectPreview->rect();
     if (rect.width() < 5 || rect.height() < 5) {
         removePreviewItem();
+        m_isDrawing = false;
         return;
     }
 
@@ -426,7 +427,13 @@ void DrawHandler::finishRect()
             QLineEdit::Normal,
             name,
             &ok);
-        if (ok && !inputName.isEmpty()) {
+        if (!ok) {
+            // 用户点击取消，删除预览图元
+            removePreviewItem();
+            m_isDrawing = false;
+            return;
+        }
+        if (!inputName.isEmpty()) {
             name = inputName;
         }
     }
@@ -445,6 +452,7 @@ void DrawHandler::finishRect()
     emit shapeCreated(m_rectPreview, ShapeType::Rect, name);
 
     m_rectPreview = nullptr;
+    m_isDrawing = false;
     m_shapeCounter++;
 }
 
@@ -458,6 +466,7 @@ void DrawHandler::finishLine()
     QLineF line = m_linePreview->line();
     if (line.length() < 5) {
         removePreviewItem();
+        m_isDrawing = false;
         return;
     }
 
@@ -473,7 +482,13 @@ void DrawHandler::finishLine()
             QLineEdit::Normal,
             name,
             &ok);
-        if (ok && !inputName.isEmpty()) {
+        if (!ok) {
+            // 用户点击取消，删除预览图元
+            removePreviewItem();
+            m_isDrawing = false;
+            return;
+        }
+        if (!inputName.isEmpty()) {
             name = inputName;
         }
     }
@@ -489,6 +504,7 @@ void DrawHandler::finishLine()
     emit shapeCreated(m_linePreview, ShapeType::Line, name);
 
     m_linePreview = nullptr;
+    m_isDrawing = false;
     m_shapeCounter++;
 }
 
