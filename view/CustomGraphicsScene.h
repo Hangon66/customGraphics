@@ -4,6 +4,7 @@
 #include <QGraphicsScene>
 #include <QColor>
 #include <QHash>
+#include <QPixmap>
 #include "../handlers/CollisionHandler.h"
 
 class QGraphicsItem;
@@ -149,6 +150,47 @@ public:
      */
     bool hasBoundaryConstraint() const;
 
+    // ========== 背景图片 ==========
+
+    /**
+     * @brief 设置背景图片。
+     *
+     * 图片将作为场景背景绘制，并自动设置边界约束为图片大小。
+     * 调用此方法后，场景将以图片尺寸作为绘制和移动的限制区域。
+     *
+     * @param pixmap 背景图片；空图片表示清除背景图片。
+     */
+    void setBackgroundPixmap(const QPixmap &pixmap);
+
+    /**
+     * @brief 从文件加载背景图片。
+     *
+     * @param filePath 图片文件路径。
+     * @return true 加载成功；false 加载失败。
+     */
+    bool loadBackgroundFromFile(const QString &filePath);
+
+    /**
+     * @brief 清除背景图片。
+     *
+     * 同时清除边界约束。
+     */
+    void clearBackgroundPixmap();
+
+    /**
+     * @brief 检查是否设置了背景图片。
+     *
+     * @return true 已设置背景图片；false 无背景图片。
+     */
+    bool hasBackgroundPixmap() const;
+
+    /**
+     * @brief 获取背景图片。
+     *
+     * @return 背景图片的引用。
+     */
+    const QPixmap& backgroundPixmap() const;
+
 signals:
     /**
      * @brief 图元移动完成信号。
@@ -172,6 +214,17 @@ protected:
      * @param rect 需要重绘的场景区域。
      */
     void drawBackground(QPainter *painter, const QRectF &rect) override;
+
+    /**
+     * @brief 绘制场景前景，包含边界约束框。
+     *
+     * 重写 QGraphicsScene::drawForeground()，在前景层绘制边界约束框。
+     * 前景层始终在所有图元之上，确保边界框不被其他图元覆盖。
+     *
+     * @param painter 用于绘制的 QPainter 对象。
+     * @param rect 需要重绘的场景区域。
+     */
+    void drawForeground(QPainter *painter, const QRectF &rect) override;
 
     /**
      * @brief 处理鼠标按下事件，记录选中图元的初始位置。
@@ -315,6 +368,13 @@ private:
      * 用于限制图元移动和绘制的范围（如石材切割场景）。
      */
     QRectF m_boundaryConstraint;
+
+    /**
+     * @brief 背景图片。
+     *
+     * 作为场景背景绘制，同时自动设置边界约束。
+     */
+    QPixmap m_backgroundPixmap;
 };
 
 #endif // CUSTOMGRAPHICSSCENE_H

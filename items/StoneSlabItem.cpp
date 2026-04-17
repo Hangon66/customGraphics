@@ -201,11 +201,8 @@ void StoneSlabItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     // 先绘制图片
     QGraphicsPixmapItem::paint(painter, option, widget);
 
-    // 绘制边界框
-    QPen borderPen(QColor(100, 100, 100), 2);
-    painter->setPen(borderPen);
-    painter->setBrush(Qt::NoBrush);
-    painter->drawRect(m_boundingRect);
+    // 边界框已移至 CustomGraphicsScene::drawForeground() 绘制
+    // 确保边界框始终在最顶层可见，不被其他图元覆盖
 
     // 绘制标签信息
     if (!m_serialNumber.isEmpty() || !m_slabName.isEmpty()) {

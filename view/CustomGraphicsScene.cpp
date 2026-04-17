@@ -5,6 +5,7 @@
 #include <QtMath>
 #include <QLineF>
 #include <QMap>
+#include <QDebug>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsItem>
 
@@ -113,9 +114,70 @@ bool CustomGraphicsScene::hasBoundaryConstraint() const
     return !m_boundaryConstraint.isNull();
 }
 
+// ========== 背景图片 ==========
+
+void CustomGraphicsScene::setBackgroundPixmap(const QPixmap &pixmap)
+{
+    m_backgroundPixmap = pixmap;
+
+    if (!pixmap.isNull()) {
+        // 自动设置边界约束为图片大小
+        QRectF pixmapRect(0, 0, pixmap.width(), pixmap.height());
+        m_boundaryConstraint = pixmapRect;
+        // 场景大小保持足够大，允许视图拖拽到空白区域
+        // 设置一个足够大的场景区域，以背景图片为中心
+        qreal margin = 5000;  // 边距，允许拖拽的范围
+        setSceneRect(-margin, -margin,
+                     pixmap.width() + margin * 2,
+                     pixmap.height() + margin * 2);
+    } else {
+        // 清除背景图片时同时清除边界约束
+        m_boundaryConstraint = QRectF();
+        setSceneRect(-5000, -5000, 10000, 10000);
+    }
+
+    invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
+}
+
+bool CustomGraphicsScene::loadBackgroundFromFile(const QString &filePath)
+{
+    QPixmap pixmap(filePath);
+    if (pixmap.isNull()) {
+        qWarning() << "Failed to load background pixmap:" << filePath;
+        return false;
+    }
+
+    setBackgroundPixmap(pixmap);
+    return true;
+}
+
+void CustomGraphicsScene::clearBackgroundPixmap()
+{
+    m_backgroundPixmap = QPixmap();
+    m_boundaryConstraint = QRectF();
+    setSceneRect(-5000, -5000, 10000, 10000);
+    invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
+}
+
+bool CustomGraphicsScene::hasBackgroundPixmap() const
+{
+    return !m_backgroundPixmap.isNull();
+}
+
+const QPixmap& CustomGraphicsScene::backgroundPixmap() const
+{
+    return m_backgroundPixmap;
+}
+
 void CustomGraphicsScene::drawBackground(QPainter *painter, const QRectF &rect)
 {
+    // 先填充背景色
     painter->fillRect(rect, m_backgroundColor);
+
+    // 如果有背景图片，绘制背景图片
+    if (hasBackgroundPixmap()) {
+        painter->drawPixmap(0, 0, m_backgroundPixmap);
+    }
 
     if (!m_gridEnabled) {
         return;
@@ -159,6 +221,20 @@ void CustomGraphicsScene::drawBackground(QPainter *painter, const QRectF &rect)
             lines.append(QLineF(rect.left(), y, rect.right(), y));
         }
         painter->drawLines(lines);
+    }
+}
+
+void CustomGraphicsScene::drawForeground(QPainter *painter, const QRectF &rect)
+{
+    Q_UNUSED(rect);
+
+    // 绘制边界约束框（前景层，确保始终可见）
+    if (hasBoundaryConstraint()) {
+        QPen borderPen(QColor(100, 100, 100), 2);
+        borderPen.setCosmetic(true);
+        painter->setPen(borderPen);
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRect(m_boundaryConstraint);
     }
 }
 

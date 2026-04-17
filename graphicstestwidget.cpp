@@ -8,7 +8,6 @@
 #include "handlers/DrawHandler.h"
 #include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
-#include "items/StoneSlabItem.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -18,6 +17,8 @@
 #include <QDebug>
 #include <QPushButton>
 #include <QLabel>
+#include <QPainter>
+#include <QPixmap>
 #include <QKeyEvent>
 #include <QUndoStack>
 
@@ -204,23 +205,31 @@ void GraphicsTestWidget::updateModeDisplay()
 }
 void GraphicsTestWidget::addTestItems()
 {
-    // 添加石板图元（作为绘制边界约束）
-    auto *stoneSlab = new StoneSlabItem();
-    stoneSlab->setSlabSize(600, 400);  // 设置石板尺寸
-    stoneSlab->setSlabName("测试石材");
-    stoneSlab->setSerialNumber("TEST-001");
-    stoneSlab->setMerchant("测试商户");
-    // 如果有本地图片可以加载：stoneSlab->loadFromFile("path/to/image.jpg");
-    m_scene->addItem(stoneSlab);
-
-    // 设置边界约束（同时设置绘制和移动）
-    QRectF boundary = stoneSlab->slabBoundingRect();
-    if (m_drawHandler) {
-        m_drawHandler->setBoundaryConstraint(boundary);  // 绘制时的约束
-        qDebug() << "设置绘制边界约束:" << boundary;
+    // 方式1：使用场景背景图片功能（推荐）
+    // 创建一个示例背景图片（实际使用时可从文件加载）
+    QPixmap bgPixmap(600, 400);
+    bgPixmap.fill(QColor(240, 240, 240));  // 浅灰色背景
+    
+    // 在背景上绘制一些纹理（模拟石材）
+    QPainter painter(&bgPixmap);
+    painter.setPen(QPen(QColor(200, 200, 200), 1));
+    for (int i = 0; i < 600; i += 20) {
+        painter.drawLine(i, 0, i, 400);
     }
-    m_scene->setBoundaryConstraint(boundary);  // 移动时的约束
-    qDebug() << "设置移动边界约束:" << boundary;
+    for (int j = 0; j < 400; j += 20) {
+        painter.drawLine(0, j, 600, j);
+    }
+    painter.end();
+    
+    // 设置场景背景图片（自动设置边界约束和场景大小）
+    m_scene->setBackgroundPixmap(bgPixmap);
+    qDebug() << "设置背景图片，尺寸:" << bgPixmap.width() << "x" << bgPixmap.height();
+    qDebug() << "边界约束:" << m_scene->boundaryConstraint();
+    
+    // 同步设置 DrawHandler 的边界约束
+    if (m_drawHandler) {
+        m_drawHandler->setBoundaryConstraint(m_scene->boundaryConstraint());
+    }
 
     // 添加已有切割区域示例
     auto *cutArea1 = new LabeledRectItem(50, 50, 150, 100);
