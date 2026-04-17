@@ -5,6 +5,7 @@
 #include "RulerHandler.h"
 #include "DrawHandler.h"
 #include "DragDropHandler.h"
+#include "RubberBandHandler.h"
 
 SceneConfig SceneConfigFactory::createStoneCuttingConfig()
 {
@@ -38,6 +39,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
         handlers << new BackgroundHandler();
         handlers << new RulerHandler(1.0, "mm");
         handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Cut");
+        handlers << new RubberBandHandler(10);  // 框选优先级最低
         return handlers;
     };
 
@@ -76,6 +78,7 @@ SceneConfig SceneConfigFactory::createFloorPlanConfig()
         handlers << new BackgroundHandler();
         handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Area");
         handlers << new DragDropHandler();
+        handlers << new RubberBandHandler(10);  // 框选优先级最低
         return handlers;
     };
 
