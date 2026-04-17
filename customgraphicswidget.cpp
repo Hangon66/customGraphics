@@ -1,5 +1,5 @@
-#include "graphicstestwidget.h"
-#include "ui_graphicstestwidget.h"
+#include "customgraphicswidget.h"
+#include "ui_customgraphicswidget.h"
 #include "view/CustomGraphicsView.h"
 #include "view/CustomGraphicsScene.h"
 #include "handlers/SceneConfig.h"
@@ -22,9 +22,9 @@
 #include <QKeyEvent>
 #include <QUndoStack>
 
-GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
+CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     : QWidget(parent)
-    , ui(new Ui::GraphicsTestWidget)
+    , ui(new Ui::CustomGraphicsWidget)
     , m_scene(nullptr)
     , m_view(nullptr)
     , m_backgroundHandler(nullptr)
@@ -40,17 +40,17 @@ GraphicsTestWidget::GraphicsTestWidget(QWidget *parent)
     initToolBar();
 }
 
-GraphicsTestWidget::~GraphicsTestWidget()
+CustomGraphicsWidget::~CustomGraphicsWidget()
 {
     delete ui;
 }
 
-void GraphicsTestWidget::keyPressEvent(QKeyEvent *event)
+void CustomGraphicsWidget::keyPressEvent(QKeyEvent *event)
 {
     QWidget::keyPressEvent(event);
 }
 
-void GraphicsTestWidget::toggleDrawSelectMode()
+void CustomGraphicsWidget::toggleDrawSelectMode()
 {
     if (m_drawHandler) {
         m_drawHandler->toggleDrawingMode();
@@ -58,7 +58,7 @@ void GraphicsTestWidget::toggleDrawSelectMode()
     }
 }
 
-void GraphicsTestWidget::initStoneCuttingScene()
+void CustomGraphicsWidget::initStoneCuttingScene()
 {
     // 获取石材切割场景配置
     SceneConfig config = SceneConfigFactory::createStoneCuttingConfig();
@@ -99,9 +99,9 @@ void GraphicsTestWidget::initStoneCuttingScene()
 
     // 连接撤销栈变化信号，更新按钮状态
     connect(m_view->undoStack(), &QUndoStack::canUndoChanged,
-            this, &GraphicsTestWidget::updateUndoRedoState);
+            this, &CustomGraphicsWidget::updateUndoRedoState);
     connect(m_view->undoStack(), &QUndoStack::canRedoChanged,
-            this, &GraphicsTestWidget::updateUndoRedoState);
+            this, &CustomGraphicsWidget::updateUndoRedoState);
 
     // 连接信号槽
     connectHandlers();
@@ -114,7 +114,7 @@ void GraphicsTestWidget::initStoneCuttingScene()
              << config.rulerUnitName;
 }
 
-void GraphicsTestWidget::initToolBar()
+void CustomGraphicsWidget::initToolBar()
 {
     // 创建工具栏容器
     QWidget *toolBar = new QWidget(this);
@@ -134,7 +134,7 @@ void GraphicsTestWidget::initToolBar()
         "QPushButton { padding: 5px 10px; border-radius: 3px; }"
         "QPushButton:checked { background-color: #4CAF50; color: white; }"
         "QPushButton:!checked { background-color: #2196F3; color: white; }");
-    connect(m_modeButton, &QPushButton::clicked, this, &GraphicsTestWidget::toggleDrawSelectMode);
+    connect(m_modeButton, &QPushButton::clicked, this, &CustomGraphicsWidget::toggleDrawSelectMode);
 
     // 撤销/重做按钮
     m_undoButton = new QPushButton("撤销", toolBar);
@@ -145,7 +145,7 @@ void GraphicsTestWidget::initToolBar()
         "QPushButton { padding: 5px 10px; border-radius: 3px; }"
         "QPushButton:enabled { background-color: #607D8B; color: white; }"
         "QPushButton:disabled { background-color: #ccc; color: #666; }");
-    connect(m_undoButton, &QPushButton::clicked, this, &GraphicsTestWidget::onUndo);
+    connect(m_undoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::onUndo);
 
     m_redoButton = new QPushButton("重做", toolBar);
     m_redoButton->setFixedWidth(60);
@@ -155,7 +155,7 @@ void GraphicsTestWidget::initToolBar()
         "QPushButton { padding: 5px 10px; border-radius: 3px; }"
         "QPushButton:enabled { background-color: #607D8B; color: white; }"
         "QPushButton:disabled { background-color: #ccc; color: #666; }");
-    connect(m_redoButton, &QPushButton::clicked, this, &GraphicsTestWidget::onRedo);
+    connect(m_redoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::onRedo);
 
     // 模式状态标签
     m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", toolBar);
@@ -183,7 +183,7 @@ void GraphicsTestWidget::initToolBar()
     updateModeDisplay();
 }
 
-void GraphicsTestWidget::updateModeDisplay()
+void CustomGraphicsWidget::updateModeDisplay()
 {
     if (!m_drawHandler || !m_modeButton || !m_modeLabel) {
         return;
@@ -203,7 +203,7 @@ void GraphicsTestWidget::updateModeDisplay()
         m_view->setFocus();
     }
 }
-void GraphicsTestWidget::addTestItems()
+void CustomGraphicsWidget::addTestItems()
 {
     // 方式1：使用场景背景图片功能（推荐）
     // 创建一个示例背景图片（实际使用时可从文件加载）
@@ -253,7 +253,7 @@ void GraphicsTestWidget::addTestItems()
     m_scene->addItem(cutArea2);
 }
 
-void GraphicsTestWidget::connectHandlers()
+void CustomGraphicsWidget::connectHandlers()
 {
     // 连接绘制完成信号
     if (m_drawHandler) {
@@ -297,21 +297,21 @@ void GraphicsTestWidget::connectHandlers()
     }
 }
 
-void GraphicsTestWidget::onUndo()
+void CustomGraphicsWidget::onUndo()
 {
     if (m_view) {
         m_view->undo();
     }
 }
 
-void GraphicsTestWidget::onRedo()
+void CustomGraphicsWidget::onRedo()
 {
     if (m_view) {
         m_view->redo();
     }
 }
 
-void GraphicsTestWidget::updateUndoRedoState()
+void CustomGraphicsWidget::updateUndoRedoState()
 {
     if (m_view) {
         if (m_undoButton) {

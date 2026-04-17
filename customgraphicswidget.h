@@ -1,11 +1,11 @@
-#ifndef GRAPHICSTESTWIDGET_H
-#define GRAPHICSTESTWIDGET_H
+#ifndef CUSTOMGRAPHICSWIDGET_H
+#define CUSTOMGRAPHICSWIDGET_H
 
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
-class GraphicsTestWidget;
+class CustomGraphicsWidget;
 }
 QT_END_NAMESPACE
 
@@ -27,7 +27,7 @@ class QLabel;
  * - 矩形绘制与命名功能
  * - 绘制/选择模式切换
  */
-class GraphicsTestWidget : public QWidget
+class CustomGraphicsWidget : public QWidget
 {
     Q_OBJECT
 
@@ -37,8 +37,8 @@ public:
      *
      * @param parent 父 QWidget 对象。
      */
-    explicit GraphicsTestWidget(QWidget *parent = nullptr);
-    ~GraphicsTestWidget() override;
+    explicit CustomGraphicsWidget(QWidget *parent = nullptr);
+    ~CustomGraphicsWidget() override;
 
     /**
      * @brief 获取自定义图形视图实例。
@@ -112,7 +112,7 @@ private:
     /**
      * @brief Qt Designer 生成的 UI 对象指针。
      */
-    Ui::GraphicsTestWidget *ui;
+    Ui::CustomGraphicsWidget *ui;
 
     /**
      * @brief 自定义图形场景实例。
@@ -159,4 +159,4 @@ private:
      */
     QPushButton *m_redoButton;
 };
-#endif // GRAPHICSTESTWIDGET_H
+#endif // CUSTOMGRAPHICSWIDGET_H

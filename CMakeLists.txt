@@ -13,9 +13,9 @@ qt_standard_project_setup()
 qt_add_executable(customGraphics
     WIN32 MACOSX_BUNDLE
     main.cpp
-    graphicstestwidget.cpp
-    graphicstestwidget.h
-    graphicstestwidget.ui
+    customgraphicswidget.cpp
+    customgraphicswidget.h
+    customgraphicswidget.ui
     handlers/IInteractionHandler.h
     handlers/SceneConfig.h
     handlers/SceneConfig.cpp
