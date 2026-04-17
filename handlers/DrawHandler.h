@@ -491,6 +491,37 @@ public:
      */
     void setUndoStack(QUndoStack *undoStack);
 
+    // ========== 边界约束 ==========
+
+    /**
+     * @brief 设置绘制边界约束。
+     *
+     * 限制绘制图形的范围，超出边界的部分会被自动约束。
+     * 主要用于石材切割场景，限制切割区域在石材范围内。
+     *
+     * @param boundary 边界矩形（场景坐标）；空矩形表示无约束。
+     */
+    void setBoundaryConstraint(const QRectF &boundary);
+
+    /**
+     * @brief 清除绘制边界约束。
+     */
+    void clearBoundaryConstraint();
+
+    /**
+     * @brief 获取当前绘制边界约束。
+     *
+     * @return 边界矩形；空矩形表示无约束。
+     */
+    QRectF boundaryConstraint() const;
+
+    /**
+     * @brief 检查是否设置了边界约束。
+     *
+     * @return true 已设置边界约束；false 无边界约束。
+     */
+    bool hasBoundaryConstraint() const;
+
     /**
      * @brief 取消当前正在进行的绘制操作。
      */
@@ -693,6 +724,14 @@ private:
      * @brief 撤销栈，用于支持撤销/重做。
      */
     QUndoStack *m_undoStack;
+
+    /**
+     * @brief 绘制边界约束矩形。
+     *
+     * 空矩形表示无约束。
+     * 用于限制绘制图形的范围（如石材切割场景）。
+     */
+    QRectF m_boundaryConstraint;
 };
 
 #endif // DRAWHANDLER_H

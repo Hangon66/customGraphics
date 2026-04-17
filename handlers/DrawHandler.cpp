@@ -567,6 +567,26 @@ void DrawHandler::setUndoStack(QUndoStack *undoStack)
     m_undoStack = undoStack;
 }
 
+void DrawHandler::setBoundaryConstraint(const QRectF &boundary)
+{
+    m_boundaryConstraint = boundary;
+}
+
+void DrawHandler::clearBoundaryConstraint()
+{
+    m_boundaryConstraint = QRectF();
+}
+
+QRectF DrawHandler::boundaryConstraint() const
+{
+    return m_boundaryConstraint;
+}
+
+bool DrawHandler::hasBoundaryConstraint() const
+{
+    return !m_boundaryConstraint.isNull();
+}
+
 void DrawHandler::cancelDrawing()
 {
     if (!m_isDrawing) {
@@ -800,8 +820,55 @@ void DrawHandler::removePreviewItem()
 
 QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
 {
+    QPointF constrainedPos = targetPos;
+
+    // 第一步：应用边界约束
+    if (hasBoundaryConstraint()) {
+        QRectF targetRect = QRectF(m_startPos, targetPos).normalized();
+
+        // 检查起点是否在边界内
+        if (!m_boundaryConstraint.contains(m_startPos)) {
+            // 起点不在边界内，不允许绘制
+            return m_startPos;
+        }
+
+        // 将目标矩形约束到边界内
+        QRectF constrainedRect = targetRect;
+
+        // 约束右边界
+        if (constrainedRect.right() > m_boundaryConstraint.right()) {
+            constrainedRect.setRight(m_boundaryConstraint.right());
+        }
+        // 约束左边界
+        if (constrainedRect.left() < m_boundaryConstraint.left()) {
+            constrainedRect.setLeft(m_boundaryConstraint.left());
+        }
+        // 约束下边界
+        if (constrainedRect.bottom() > m_boundaryConstraint.bottom()) {
+            constrainedRect.setBottom(m_boundaryConstraint.bottom());
+        }
+        // 约束上边界
+        if (constrainedRect.top() < m_boundaryConstraint.top()) {
+            constrainedRect.setTop(m_boundaryConstraint.top());
+        }
+
+        // 计算约束后的终点位置
+        // 根据原始拖动方向确定约束后的终点
+        if (targetPos.x() >= m_startPos.x()) {
+            constrainedPos.setX(constrainedRect.right());
+        } else {
+            constrainedPos.setX(constrainedRect.left());
+        }
+        if (targetPos.y() >= m_startPos.y()) {
+            constrainedPos.setY(constrainedRect.bottom());
+        } else {
+            constrainedPos.setY(constrainedRect.top());
+        }
+    }
+
+    // 第二步：应用碰撞约束
     if (!m_scene) {
-        return targetPos;
+        return constrainedPos;
     }
 
     // 获取碰撞配置
@@ -815,28 +882,24 @@ QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
         config = &defaultConfig;
     }
 
-    // 检查目标位置是否有效
-    QRectF targetRect = QRectF(m_startPos, targetPos).normalized();
+    // 检查约束后的位置是否有效
+    QRectF targetRect = QRectF(m_startPos, constrainedPos).normalized();
     if (!CollisionHandler::rectOverlapsAnyItem(m_scene, targetRect, nullptr, config)) {
-        return targetPos;  // 无碰撞，直接返回
+        return constrainedPos;  // 无碰撞，直接返回
     }
 
     // 使用二分查找找到最大有效位置
-    // 参数 t 从 0（起点）到 1（目标终点）
     double tMin = 0.0;
     double tMax = 1.0;
-    const int maxIterations = 20;  // 足够的精度
-    const double tolerance = 0.5;  // 像素容差
+    const int maxIterations = 20;
+    const double tolerance = 0.5;
 
-    QPointF direction = targetPos - m_startPos;
+    QPointF direction = constrainedPos - m_startPos;
     double length = std::sqrt(direction.x() * direction.x() + direction.y() * direction.y());
 
-    // 如果长度太小，直接返回起点
     if (length < tolerance) {
         return m_startPos;
     }
-
-    QPointF unitDir = direction / length;
 
     for (int i = 0; i < maxIterations; ++i) {
         double tMid = (tMin + tMax) / 2.0;
@@ -844,9 +907,9 @@ QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
         QRectF midRect = QRectF(m_startPos, midPos).normalized();
 
         if (CollisionHandler::rectOverlapsAnyItem(m_scene, midRect, nullptr, config)) {
-            tMax = tMid;  // 碰撞，收缩
+            tMax = tMid;
         } else {
-            tMin = tMid;  // 无碰撞，扩展
+            tMin = tMid;
         }
 
         // 检查精度是否足够
@@ -862,8 +925,23 @@ QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
 
 QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
 {
+    QPointF constrainedPos = targetPos;
+
+    // 第一步：应用边界约束
+    if (hasBoundaryConstraint()) {
+        // 检查起点是否在边界内
+        if (!m_boundaryConstraint.contains(m_startPos)) {
+            return m_startPos;
+        }
+
+        // 将终点约束到边界内
+        constrainedPos.setX(qBound(m_boundaryConstraint.left(), constrainedPos.x(), m_boundaryConstraint.right()));
+        constrainedPos.setY(qBound(m_boundaryConstraint.top(), constrainedPos.y(), m_boundaryConstraint.bottom()));
+    }
+
+    // 第二步：应用碰撞约束
     if (!m_scene) {
-        return targetPos;
+        return constrainedPos;
     }
 
     // 获取碰撞配置
@@ -878,8 +956,8 @@ QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
     }
 
     // 对于线条，检查终点是否在图元内部
-    if (!CollisionHandler::pointInAnyItem(m_scene, targetPos, nullptr, config)) {
-        return targetPos;  // 终点无碰撞，直接返回
+    if (!CollisionHandler::pointInAnyItem(m_scene, constrainedPos, nullptr, config)) {
+        return constrainedPos;  // 终点无碰撞，直接返回
     }
 
     // 使用二分查找找到最大有效位置
@@ -888,7 +966,7 @@ QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
     const int maxIterations = 20;
     const double tolerance = 0.5;
 
-    QPointF direction = targetPos - m_startPos;
+    QPointF direction = constrainedPos - m_startPos;
     double length = std::sqrt(direction.x() * direction.x() + direction.y() * direction.y());
 
     if (length < tolerance) {
@@ -900,9 +978,9 @@ QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
         QPointF midPos = m_startPos + direction * tMid;
 
         if (CollisionHandler::pointInAnyItem(m_scene, midPos, nullptr, config)) {
-            tMax = tMid;  // 碰撞，收缩
+            tMax = tMid;
         } else {
-            tMin = tMid;  // 无碰撞，扩展
+            tMin = tMid;
         }
 
         if ((tMax - tMin) * length < tolerance) {

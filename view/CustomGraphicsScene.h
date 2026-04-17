@@ -118,6 +118,37 @@ public:
      */
     bool isCollisionEnabled() const;
 
+    // ========== 边界约束 ==========
+
+    /**
+     * @brief 设置图元移动边界约束。
+     *
+     * 限制图元移动的范围，超出边界的部分会被自动约束。
+     * 主要用于石材切割场景，限制切割区域在石材范围内。
+     *
+     * @param boundary 边界矩形（场景坐标）；空矩形表示无约束。
+     */
+    void setBoundaryConstraint(const QRectF &boundary);
+
+    /**
+     * @brief 清除边界约束。
+     */
+    void clearBoundaryConstraint();
+
+    /**
+     * @brief 获取当前边界约束。
+     *
+     * @return 边界矩形；空矩形表示无约束。
+     */
+    QRectF boundaryConstraint() const;
+
+    /**
+     * @brief 检查是否设置了边界约束。
+     *
+     * @return true 已设置边界约束；false 无边界约束。
+     */
+    bool hasBoundaryConstraint() const;
+
 signals:
     /**
      * @brief 图元移动完成信号。
@@ -182,6 +213,50 @@ protected:
     QPointF calculateBlockedPosition(const QRectF &itemRect, const QPointF &currentPos,
                                       const QPointF &targetPos, const QRectF &obstacleRect);
 
+    /**
+     * @brief 处理单个图元移动。
+     *
+     * @param event 鼠标事件。
+     * @param selected 选中的图元列表。
+     */
+    void handleSingleItemMove(QGraphicsSceneMouseEvent *event, const QList<QGraphicsItem*> &selected);
+
+    /**
+     * @brief 处理多个图元整体移动。
+     *
+     * @param event 鼠标事件。
+     * @param selected 选中的图元列表。
+     */
+    void handleMultiItemMove(QGraphicsSceneMouseEvent *event, const QList<QGraphicsItem*> &selected);
+
+    /**
+     * @brief 获取图元的障碍物列表。
+     *
+     * @param source 源图元。
+     * @param sourceType 源图元碰撞类型。
+     * @return 障碍物列表。
+     */
+    QList<QGraphicsItem*> getObstacles(QGraphicsItem *source, CollisionShapeType sourceType);
+
+    /**
+     * @brief 对图元应用边界约束。
+     *
+     * @param item 要约束的图元。
+     */
+    void applyBoundaryConstraint(QGraphicsItem *item);
+
+    /**
+     * @brief 计算最小阻挡偏移量。
+     *
+     * @param itemLocalRect 图元本地边界矩形。
+     * @param oldPos 原始位置。
+     * @param newPos 目标位置。
+     * @param obstacleRect 障碍物边界。
+     * @return 最小阻挡偏移量。
+     */
+    QPointF calculateMinBlockedDelta(const QRectF &itemLocalRect, const QPointF &oldPos,
+                                      const QPointF &newPos, const QRectF &obstacleRect);
+
 private:
     /**
      * @brief 是否绘制网格背景。
@@ -232,6 +307,14 @@ private:
      * 定义哪些图元类型对之间可以发生碰撞。
      */
     CollisionConfig m_collisionConfig;
+
+    /**
+     * @brief 边界约束矩形。
+     *
+     * 空矩形表示无约束。
+     * 用于限制图元移动和绘制的范围（如石材切割场景）。
+     */
+    QRectF m_boundaryConstraint;
 };
 
 #endif // CUSTOMGRAPHICSSCENE_H

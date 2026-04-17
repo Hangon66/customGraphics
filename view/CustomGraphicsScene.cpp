@@ -93,6 +93,26 @@ bool CustomGraphicsScene::isCollisionEnabled() const
     return m_collisionEnabled;
 }
 
+void CustomGraphicsScene::setBoundaryConstraint(const QRectF &boundary)
+{
+    m_boundaryConstraint = boundary;
+}
+
+void CustomGraphicsScene::clearBoundaryConstraint()
+{
+    m_boundaryConstraint = QRectF();
+}
+
+QRectF CustomGraphicsScene::boundaryConstraint() const
+{
+    return m_boundaryConstraint;
+}
+
+bool CustomGraphicsScene::hasBoundaryConstraint() const
+{
+    return !m_boundaryConstraint.isNull();
+}
+
 void CustomGraphicsScene::drawBackground(QPainter *painter, const QRectF &rect)
 {
     painter->fillRect(rect, m_backgroundColor);
@@ -187,12 +207,6 @@ void CustomGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 
 void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    // 如果未启用碰撞阻挡，直接使用默认处理
-    if (!m_collisionEnabled) {
-        QGraphicsScene::mouseMoveEvent(event);
-        return;
-    }
-
     // 获取当前选中的图元
     QList<QGraphicsItem*> selected = QGraphicsScene::selectedItems();
     if (selected.isEmpty()) {
@@ -200,69 +214,339 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         return;
     }
 
+    // 单选和多选使用不同的处理逻辑
+    if (selected.size() == 1) {
+        // 单选：使用原有逻辑
+        handleSingleItemMove(event, selected);
+    } else {
+        // 多选：整体移动逻辑
+        handleMultiItemMove(event, selected);
+    }
+}
+
+void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, const QList<QGraphicsItem*> &selected)
+{
+    QGraphicsItem *item = selected.first();
+
     // 记录移动前的位置
-    QMap<QGraphicsItem*, QPointF> posBeforeMove;
+    QPointF oldPos = item->pos();
+
+    // 调用父类处理默认移动
+    QGraphicsScene::mouseMoveEvent(event);
+
+    // 获取移动后的位置
+    QPointF newPos = item->pos();
+
+    // 如果没有实际移动，跳过
+    QPointF delta = newPos - oldPos;
+    if (qFuzzyIsNull(delta.x()) && qFuzzyIsNull(delta.y())) {
+        return;
+    }
+
+    if (!CollisionHandler::isCollisionItem(item)) {
+        // 仅应用边界约束
+        applyBoundaryConstraint(item);
+        return;
+    }
+
+    // 使用 shape() 的边界矩形
+    QRectF itemShapeRect = item->shape().boundingRect();
+
+    // 碰撞检测处理（如果启用）
+    if (m_collisionEnabled) {
+        // 获取源图元类型
+        CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+
+        // 获取场景中其他可能阻挡的图元
+        QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
+
+        if (!obstacles.isEmpty()) {
+            QRectF newItemRect = itemShapeRect.translated(newPos);
+
+            for (QGraphicsItem *obstacle : obstacles) {
+                QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+
+                if (newItemRect.intersects(obstacleRect)) {
+                    QPointF blockedPos = calculateBlockedPosition(itemShapeRect, oldPos, newPos, obstacleRect);
+                    item->setPos(blockedPos);
+                    newPos = blockedPos;
+                    newItemRect = itemShapeRect.translated(newPos);
+                }
+            }
+        }
+
+        // 边界约束
+        applyBoundaryConstraint(item);
+        newPos = item->pos();
+
+        // 最终位置合法性验证：防止多阻挡物夹击或边界约束导致的瞬移重叠
+        // 场景1：两阻挡物间距小于图元尺寸，处理后续阻挡物后回退到与前一个阻挡物重叠
+        // 场景2：阻挡物紧靠边界，边界约束将图元推到与阻挡物重叠的位置
+        QRectF finalItemRect = itemShapeRect.translated(newPos);
+        for (QGraphicsItem *obstacle : obstacles) {
+            QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+            if (finalItemRect.intersects(obstacleRect)) {
+                // 最终位置与障碍物重叠，取消本次移动，保持原位置
+                item->setPos(oldPos);
+                return;
+            }
+        }
+    } else {
+        // 无碰撞检测时，仅应用边界约束
+        applyBoundaryConstraint(item);
+    }
+}
+
+void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, const QList<QGraphicsItem*> &selected)
+{
+    // 记录所有图元移动前的位置
+    QMap<QGraphicsItem*, QPointF> oldPositions;
     for (QGraphicsItem *item : selected) {
-        posBeforeMove[item] = item->pos();
+        oldPositions[item] = item->pos();
     }
 
     // 调用父类处理默认移动
     QGraphicsScene::mouseMoveEvent(event);
 
-    // 对每个选中图元进行碰撞检测和阻挡处理
+    // 计算第一个图元的移动偏移量（所有图元应该有相同的偏移）
+    QGraphicsItem *firstItem = selected.first();
+    QPointF firstOldPos = oldPositions[firstItem];
+    QPointF firstNewPos = firstItem->pos();
+    QPointF delta = firstNewPos - firstOldPos;
+
+    // 如果没有实际移动，跳过
+    if (qFuzzyIsNull(delta.x()) && qFuzzyIsNull(delta.y())) {
+        return;
+    }
+
+    // 检测是否需要整体回退
+    bool needRollback = false;
+    QPointF minBlockedDelta = delta;  // 最小阻挡偏移量
+
+    // 检查每个图元
     for (QGraphicsItem *item : selected) {
         if (!CollisionHandler::isCollisionItem(item)) {
             continue;
         }
 
-        // 获取移动前后的位置
-        QPointF oldPos = posBeforeMove[item];
-        QPointF newPos = item->pos();
+        QPointF oldPos = oldPositions[item];
+        QRectF itemShapeRect = item->shape().boundingRect();
+        QRectF newItemRect = itemShapeRect.translated(oldPos + delta);
 
-        // 如果没有实际移动，跳过
-        QPointF delta = newPos - oldPos;
-        if (qFuzzyIsNull(delta.x()) && qFuzzyIsNull(delta.y())) {
-            continue;
-        }
+        // 碰撞检测
+        if (m_collisionEnabled) {
+            CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+            QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
 
-        // 获取源图元类型
-        CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+            for (QGraphicsItem *obstacle : obstacles) {
+                QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
 
-        // 获取场景中其他可能阻挡的图元（考虑碰撞配置）
-        QList<QGraphicsItem*> allItems = QGraphicsScene::items();
-        QList<QGraphicsItem*> obstacles;
-        for (QGraphicsItem *other : allItems) {
-            if (!selected.contains(other) &&
-                CollisionHandler::isCollisionItemWithConfig(other, sourceType, m_collisionConfig)) {
-                obstacles.append(other);
+                if (newItemRect.intersects(obstacleRect)) {
+                    // 计算需要的阻挡偏移量
+                    QPointF neededDelta = calculateMinBlockedDelta(itemShapeRect, oldPos, oldPos + delta, obstacleRect);
+                    
+                    // 更新最小阻挡偏移量（取所有阻挡中的最小移动）
+                    if (qAbs(neededDelta.x()) < qAbs(minBlockedDelta.x()) ||
+                        (minBlockedDelta.x() > 0 && neededDelta.x() < minBlockedDelta.x()) ||
+                        (minBlockedDelta.x() < 0 && neededDelta.x() > minBlockedDelta.x())) {
+                        minBlockedDelta.setX(neededDelta.x());
+                    }
+                    if (qAbs(neededDelta.y()) < qAbs(minBlockedDelta.y()) ||
+                        (minBlockedDelta.y() > 0 && neededDelta.y() < minBlockedDelta.y()) ||
+                        (minBlockedDelta.y() < 0 && neededDelta.y() > minBlockedDelta.y())) {
+                        minBlockedDelta.setY(neededDelta.y());
+                    }
+                    needRollback = true;
+                }
             }
         }
 
-        if (obstacles.isEmpty()) {
-            continue;
-        }
+        // 边界约束检测
+        if (hasBoundaryConstraint()) {
+            QRectF testRect = itemShapeRect.translated(oldPos + delta);
+            QPointF neededDelta = delta;
+            bool hitBoundary = false;
 
-        // 使用 shape() 的边界矩形进行碰撞检测，确保不包含标签扩展区域
-        QRectF itemShapeRect = item->shape().boundingRect();
-        QRectF newItemRect = itemShapeRect.translated(newPos);
+            if (testRect.left() < m_boundaryConstraint.left()) {
+                neededDelta.setX(delta.x() + (m_boundaryConstraint.left() - testRect.left()));
+                hitBoundary = true;
+            }
+            if (testRect.right() > m_boundaryConstraint.right()) {
+                neededDelta.setX(delta.x() - (testRect.right() - m_boundaryConstraint.right()));
+                hitBoundary = true;
+            }
+            if (testRect.top() < m_boundaryConstraint.top()) {
+                neededDelta.setY(delta.y() + (m_boundaryConstraint.top() - testRect.top()));
+                hitBoundary = true;
+            }
+            if (testRect.bottom() > m_boundaryConstraint.bottom()) {
+                neededDelta.setY(delta.y() - (testRect.bottom() - m_boundaryConstraint.bottom()));
+                hitBoundary = true;
+            }
 
-        for (QGraphicsItem *obstacle : obstacles) {
-            QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
-
-            if (newItemRect.intersects(obstacleRect)) {
-                // 发生碰撞，计算沿移动方向的阻挡位置
-                QPointF blockedPos = calculateBlockedPosition(
-                    itemShapeRect, oldPos, newPos, obstacleRect);
-
-                // 设置阻挡位置
-                item->setPos(blockedPos);
-
-                // 更新位置用于后续障碍物检测
-                newPos = blockedPos;
-                newItemRect = itemShapeRect.translated(newPos);
+            if (hitBoundary) {
+                if (qAbs(neededDelta.x()) < qAbs(minBlockedDelta.x()) ||
+                    (minBlockedDelta.x() > 0 && neededDelta.x() < minBlockedDelta.x()) ||
+                    (minBlockedDelta.x() < 0 && neededDelta.x() > minBlockedDelta.x())) {
+                    minBlockedDelta.setX(neededDelta.x());
+                }
+                if (qAbs(neededDelta.y()) < qAbs(minBlockedDelta.y()) ||
+                    (minBlockedDelta.y() > 0 && neededDelta.y() < minBlockedDelta.y()) ||
+                    (minBlockedDelta.y() < 0 && neededDelta.y() > minBlockedDelta.y())) {
+                    minBlockedDelta.setY(neededDelta.y());
+                }
+                needRollback = true;
             }
         }
     }
+
+    // 如果需要回退，将所有图元设置到最小阻挡偏移位置
+    if (needRollback) {
+        for (QGraphicsItem *item : selected) {
+            QPointF oldPos = oldPositions[item];
+            item->setPos(oldPos + minBlockedDelta);
+        }
+    }
+
+    // 最终位置合法性验证：防止多阻挡物夹击或边界约束导致的瞬移重叠
+    // 边界约束后的位置可能与障碍物重叠（当阻挡物紧靠边界且间距过窄）
+    if (m_collisionEnabled) {
+        bool hasOverlap = false;
+        for (QGraphicsItem *item : selected) {
+            if (!CollisionHandler::isCollisionItem(item)) {
+                continue;
+            }
+
+            QRectF itemShapeRect = item->shape().boundingRect();
+            QRectF finalItemRect = itemShapeRect.translated(item->pos());
+
+            CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+            QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
+
+            for (QGraphicsItem *obstacle : obstacles) {
+                QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+                if (finalItemRect.intersects(obstacleRect)) {
+                    hasOverlap = true;
+                    break;
+                }
+            }
+            if (hasOverlap) {
+                break;
+            }
+        }
+
+        // 如果最终位置与障碍物重叠，取消本次移动，恢复所有图元到原位置
+        if (hasOverlap) {
+            for (QGraphicsItem *item : selected) {
+                item->setPos(oldPositions[item]);
+            }
+        }
+    }
+}
+
+QList<QGraphicsItem*> CustomGraphicsScene::getObstacles(QGraphicsItem *source, CollisionShapeType sourceType)
+{
+    QList<QGraphicsItem*> allItems = QGraphicsScene::items();
+    QList<QGraphicsItem*> obstacles;
+    QList<QGraphicsItem*> selected = QGraphicsScene::selectedItems();
+
+    for (QGraphicsItem *other : allItems) {
+        if (other != source &&
+            !selected.contains(other) &&
+            CollisionHandler::isCollisionItemWithConfig(other, sourceType, m_collisionConfig)) {
+            obstacles.append(other);
+        }
+    }
+    return obstacles;
+}
+
+void CustomGraphicsScene::applyBoundaryConstraint(QGraphicsItem *item)
+{
+    if (!hasBoundaryConstraint()) {
+        return;
+    }
+
+    QRectF itemSceneRect = item->shape().boundingRect().translated(item->pos());
+    QPointF constrainedPos = item->pos();
+    bool needsConstraint = false;
+
+    if (itemSceneRect.left() < m_boundaryConstraint.left()) {
+        constrainedPos.setX(item->pos().x() + (m_boundaryConstraint.left() - itemSceneRect.left()));
+        needsConstraint = true;
+    }
+    if (itemSceneRect.right() > m_boundaryConstraint.right()) {
+        constrainedPos.setX(item->pos().x() - (itemSceneRect.right() - m_boundaryConstraint.right()));
+        needsConstraint = true;
+    }
+    if (itemSceneRect.top() < m_boundaryConstraint.top()) {
+        constrainedPos.setY(item->pos().y() + (m_boundaryConstraint.top() - itemSceneRect.top()));
+        needsConstraint = true;
+    }
+    if (itemSceneRect.bottom() > m_boundaryConstraint.bottom()) {
+        constrainedPos.setY(item->pos().y() - (itemSceneRect.bottom() - m_boundaryConstraint.bottom()));
+        needsConstraint = true;
+    }
+
+    if (needsConstraint) {
+        item->setPos(constrainedPos);
+    }
+}
+
+QPointF CustomGraphicsScene::calculateMinBlockedDelta(
+    const QRectF &itemLocalRect, const QPointF &oldPos, const QPointF &newPos, const QRectF &obstacleRect)
+{
+    qreal dx = newPos.x() - oldPos.x();
+    qreal dy = newPos.y() - oldPos.y();
+
+    QRectF oldSceneRect = itemLocalRect.translated(oldPos);
+    QPointF blockedDelta = QPointF(dx, dy);
+
+    // 检查 Y 方向重叠
+    bool yOverlap = (oldSceneRect.bottom() > obstacleRect.top() &&
+                     oldSceneRect.top() < obstacleRect.bottom());
+    // 检查 X 方向重叠
+    bool xOverlap = (oldSceneRect.right() > obstacleRect.left() &&
+                     oldSceneRect.left() < obstacleRect.right());
+
+    // X 方向阻挡计算
+    if (dx > 0 && yOverlap) {
+        qreal maxRight = obstacleRect.left();
+        qreal currentRight = oldSceneRect.right();
+        if (currentRight < maxRight) {
+            blockedDelta.setX(qMin(dx, maxRight - currentRight));
+        } else {
+            blockedDelta.setX(0);
+        }
+    } else if (dx < 0 && yOverlap) {
+        qreal minLeft = obstacleRect.right();
+        qreal currentLeft = oldSceneRect.left();
+        if (currentLeft > minLeft) {
+            blockedDelta.setX(qMax(dx, minLeft - currentLeft));
+        } else {
+            blockedDelta.setX(0);
+        }
+    }
+
+    // Y 方向阻挡计算
+    if (dy > 0 && xOverlap) {
+        qreal maxBottom = obstacleRect.top();
+        qreal currentBottom = oldSceneRect.bottom();
+        if (currentBottom < maxBottom) {
+            blockedDelta.setY(qMin(dy, maxBottom - currentBottom));
+        } else {
+            blockedDelta.setY(0);
+        }
+    } else if (dy < 0 && xOverlap) {
+        qreal minTop = obstacleRect.bottom();
+        qreal currentTop = oldSceneRect.top();
+        if (currentTop > minTop) {
+            blockedDelta.setY(qMax(dy, minTop - currentTop));
+        } else {
+            blockedDelta.setY(0);
+        }
+    }
+
+    return blockedDelta;
 }
 
 QPointF CustomGraphicsScene::calculateBlockedPosition(

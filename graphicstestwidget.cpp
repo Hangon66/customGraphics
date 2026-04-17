@@ -8,6 +8,7 @@
 #include "handlers/DrawHandler.h"
 #include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
+#include "items/StoneSlabItem.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -203,16 +204,23 @@ void GraphicsTestWidget::updateModeDisplay()
 }
 void GraphicsTestWidget::addTestItems()
 {
-    // 添加示例石板区域
-    auto *stoneRect = new LabeledRectItem(0, 0, 600, 400);
-    stoneRect->setPen(QPen(Qt::darkGray, 2));
-    stoneRect->setBrush(QBrush(QColor(200, 200, 200, 50)));
-    // stoneRect->setFlag(QGraphicsItem::ItemIsSelectable);
-    stoneRect->setData(0, "StoneArea");
-    stoneRect->setData(2, "石板区域");
-    stoneRect->setLabelText("石板区域");
-    // stoneRect->setLabelColor(Qt::darkGray);
-    m_scene->addItem(stoneRect);
+    // 添加石板图元（作为绘制边界约束）
+    auto *stoneSlab = new StoneSlabItem();
+    stoneSlab->setSlabSize(600, 400);  // 设置石板尺寸
+    stoneSlab->setSlabName("测试石材");
+    stoneSlab->setSerialNumber("TEST-001");
+    stoneSlab->setMerchant("测试商户");
+    // 如果有本地图片可以加载：stoneSlab->loadFromFile("path/to/image.jpg");
+    m_scene->addItem(stoneSlab);
+
+    // 设置边界约束（同时设置绘制和移动）
+    QRectF boundary = stoneSlab->slabBoundingRect();
+    if (m_drawHandler) {
+        m_drawHandler->setBoundaryConstraint(boundary);  // 绘制时的约束
+        qDebug() << "设置绘制边界约束:" << boundary;
+    }
+    m_scene->setBoundaryConstraint(boundary);  // 移动时的约束
+    qDebug() << "设置移动边界约束:" << boundary;
 
     // 添加已有切割区域示例
     auto *cutArea1 = new LabeledRectItem(50, 50, 150, 100);
@@ -234,11 +242,6 @@ void GraphicsTestWidget::addTestItems()
     cutArea2->setData(2, "切割区域_2");
     cutArea2->setLabelText("切割区域_2");
     m_scene->addItem(cutArea2);
-
-    // 添加尺寸标注文本
-    auto *dimText = m_scene->addText("600mm x 400mm", QFont("Arial", 12));
-    dimText->setPos(200, 420);
-    dimText->setDefaultTextColor(Qt::darkGray);
 }
 
 void GraphicsTestWidget::connectHandlers()

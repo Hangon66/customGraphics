@@ -6,7 +6,7 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
 
 qt_standard_project_setup()
 
@@ -41,12 +41,15 @@ qt_add_executable(customGraphics
     handlers/RubberBandHandler.cpp
     handlers/CollisionHandler.h
     handlers/CollisionHandler.cpp
+    items/StoneSlabItem.h
+    items/StoneSlabItem.cpp
 )
 
 target_link_libraries(customGraphics
     PRIVATE
         Qt::Core
         Qt::Widgets
+        Qt::Network
 )
 
 install(TARGETS customGraphics
