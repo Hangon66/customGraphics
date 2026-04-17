@@ -6,7 +6,7 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 
 qt_standard_project_setup()
 
@@ -49,7 +49,6 @@ target_link_libraries(customGraphics
     PRIVATE
         Qt::Core
         Qt::Widgets
-        Qt::Network
 )
 
 install(TARGETS customGraphics

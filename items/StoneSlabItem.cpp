@@ -2,18 +2,12 @@
 
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QEventLoop>
-#include <QFileInfo>
 #include <QDebug>
 
 StoneSlabItem::StoneSlabItem(QGraphicsItem *parent)
     : QGraphicsPixmapItem(parent)
     , m_length(0)
     , m_width(0)
-    , m_isLoading(false)
 {
     initItem();
 }
@@ -33,59 +27,9 @@ void StoneSlabItem::initItem()
     // 默认位置在原点
     setPos(0, 0);
 
-    // 允许选择（用于高亮显示）
+    // 禁止选择和移动
     setFlag(QGraphicsItem::ItemIsSelectable, false);
     setFlag(QGraphicsItem::ItemIsMovable, false);
-}
-
-void StoneSlabItem::loadFromUrl(const QString &imagePath, const QString &basePath)
-{
-    m_isLoading = true;
-
-    QString fullPath = imagePath;
-    
-    // 如果提供了基础路径且图片路径是相对路径，拼接完整路径
-    if (!basePath.isEmpty() && !imagePath.contains("://") && !QFileInfo(imagePath).isAbsolute()) {
-        fullPath = basePath + "/" + imagePath;
-    }
-
-    // 判断是网络URL还是本地文件路径
-    if (fullPath.startsWith("http://") || fullPath.startsWith("https://")) {
-        // 网络URL - 异步加载
-        loadFromNetwork(fullPath);
-    } else {
-        // 本地文件 - 直接加载
-        loadFromFile(fullPath);
-    }
-
-    m_isLoading = false;
-}
-
-void StoneSlabItem::loadFromNetwork(const QString &url)
-{
-    QNetworkAccessManager manager;
-    QNetworkRequest request{QUrl(url)};
-    QNetworkReply *reply = manager.get(request);
-
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    if (reply->error() == QNetworkReply::NoError) {
-        QByteArray imageData = reply->readAll();
-        QPixmap pixmap;
-        if (pixmap.loadFromData(imageData)) {
-            setPixmap(pixmap);
-            updateBoundingRect();
-            qDebug() << "石材图片加载成功:" << url;
-        } else {
-            qWarning() << "无法解析图片数据:" << url;
-        }
-    } else {
-        qWarning() << "图片加载失败:" << reply->errorString();
-    }
-
-    reply->deleteLater();
 }
 
 void StoneSlabItem::loadFromFile(const QString &filePath)
@@ -155,56 +99,12 @@ QRectF StoneSlabItem::slabBoundingRect() const
     return m_boundingRect;
 }
 
-bool StoneSlabItem::containsScenePoint(const QPointF &scenePos) const
-{
-    return m_boundingRect.contains(scenePos);
-}
-
-bool StoneSlabItem::containsSceneRect(const QRectF &sceneRect) const
-{
-    return m_boundingRect.contains(sceneRect);
-}
-
-QRectF StoneSlabItem::constrainToBoundary(const QRectF &sceneRect) const
-{
-    if (m_boundingRect.isNull()) {
-        return sceneRect;
-    }
-
-    QRectF constrained = sceneRect;
-
-    // 约束左边界
-    if (constrained.left() < m_boundingRect.left()) {
-        constrained.moveLeft(m_boundingRect.left());
-    }
-
-    // 约束右边界
-    if (constrained.right() > m_boundingRect.right()) {
-        constrained.moveRight(m_boundingRect.right());
-    }
-
-    // 约束上边界
-    if (constrained.top() < m_boundingRect.top()) {
-        constrained.moveTop(m_boundingRect.top());
-    }
-
-    // 约束下边界
-    if (constrained.bottom() > m_boundingRect.bottom()) {
-        constrained.moveBottom(m_boundingRect.bottom());
-    }
-
-    return constrained;
-}
-
 void StoneSlabItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
     // 先绘制图片
     QGraphicsPixmapItem::paint(painter, option, widget);
 
-    // 边界框已移至 CustomGraphicsScene::drawForeground() 绘制
-    // 确保边界框始终在最顶层可见，不被其他图元覆盖
-
-    // 绘制标签信息
+    // 绘制标签信息（右上角）
     if (!m_serialNumber.isEmpty() || !m_slabName.isEmpty()) {
         QString label;
         if (!m_slabName.isEmpty()) {

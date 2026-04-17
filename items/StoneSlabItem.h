@@ -3,17 +3,17 @@
 
 #include <QGraphicsPixmapItem>
 #include <QPixmap>
-#include <QUrl>
 #include <QRectF>
 #include <QString>
-
-class QNetworkReply;
 
 /**
  * @brief 石材板图元类。
  *
  * 表示一块石材板，包含图片、尺寸信息和元数据。
- * 作为切割区域的边界约束容器。
+ * 提供标签和尺寸标注绘制功能。
+ *
+ * 注意：边界约束功能已迁移至 CustomGraphicsScene::setBackgroundPixmap()。
+ * 此类主要用于需要元数据显示或图元级交互的场景。
  */
 class StoneSlabItem : public QGraphicsPixmapItem
 {
@@ -29,14 +29,6 @@ public:
      * @brief 析构函数。
      */
     ~StoneSlabItem() override;
-
-    /**
-     * @brief 从网络URL加载石材图片。
-     *
-     * @param imageUrl 图片URL。
-     * @param baseUrl 基础URL（可选）。
-     */
-    void loadFromUrl(const QString &imageUrl, const QString &baseUrl = QString());
 
     /**
      * @brief 从本地文件加载石材图片。
@@ -112,47 +104,19 @@ public:
     /**
      * @brief 获取石材边界矩形（场景坐标）。
      *
-     * 用于碰撞检测和绘制约束。
-     *
      * @return 边界矩形。
      */
     QRectF slabBoundingRect() const;
 
     /**
-     * @brief 检查点是否在石材边界内。
-     *
-     * @param scenePos 场景坐标点。
-     * @return true 在边界内；false 在边界外。
-     */
-    bool containsScenePoint(const QPointF &scenePos) const;
-
-    /**
-     * @brief 检查矩形是否完全在石材边界内。
-     *
-     * @param sceneRect 场景坐标矩形。
-     * @return true 完全在边界内；false 部分或完全在边界外。
-     */
-    bool containsSceneRect(const QRectF &sceneRect) const;
-
-    /**
-     * @brief 将矩形约束到石材边界内。
-     *
-     * 如果矩形超出边界，返回约束后的矩形。
-     *
-     * @param sceneRect 场景坐标矩形。
-     * @return 约束后的矩形。
-     */
-    QRectF constrainToBoundary(const QRectF &sceneRect) const;
-
-    /**
-     * @brief 重写绘制方法，添加边界框和标签。
+     * @brief 重写绘制方法，绘制标签和尺寸标注。
      */
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
 
     /**
      * @brief 获取图元类型标识。
      *
-     * @return "StoneSlab"
+     * @return 自定义图元类型ID。
      */
     int type() const override;
 
@@ -167,13 +131,6 @@ private:
      */
     void updateBoundingRect();
 
-    /**
-     * @brief 从网络URL加载图片。
-     *
-     * @param url 网络URL。
-     */
-    void loadFromNetwork(const QString &url);
-
 private:
     /**
      * @brief 石材长度（mm）。
@@ -183,7 +140,7 @@ private:
     /**
      * @brief 石材宽度（mm）。
      */
-     double m_width;
+    double m_width;
 
     /**
      * @brief 石材编号。
@@ -204,11 +161,6 @@ private:
      * @brief 边界矩形（场景坐标）。
      */
     QRectF m_boundingRect;
-
-    /**
-     * @brief 是否正在加载图片。
-     */
-    bool m_isLoading;
 };
 
 #endif // STONESLABITEM_H
