@@ -54,6 +54,65 @@ public:
      */
     CustomGraphicsScene* scene() const { return m_scene; }
 
+    // ========== 模式与操作公共接口 ==========
+
+    /**
+     * @brief 切换绘制/选择模式。
+     *
+     * 外部调用时与工具栏按钮等效，
+     * 会在绘制模式和选择模式之间切换。
+     */
+    void toggleDrawSelectMode();
+
+    /**
+     * @brief 切换到绘制模式。
+     *
+     * 无论当前处于何种模式，均切换为绘制模式。
+     */
+    void setDrawMode();
+
+    /**
+     * @brief 切换到选择模式。
+     *
+     * 无论当前处于何种模式，均切换为选择模式。
+     */
+    void setSelectMode();
+
+    /**
+     * @brief 执行撤销操作。
+     *
+     * 撤销上一步操作，与点击撤销按钮等效。
+     */
+    void undo();
+
+    /**
+     * @brief 执行重做操作。
+     *
+     * 重做上一次撤销的操作，与点击重做按钮等效。
+     */
+    void redo();
+
+signals:
+    /**
+     * @brief 撤销可用状态变化信号。
+     *
+     * 当撤销栈的 canUndo 状态发生变化时发出，
+     * 外部可连接此信号自动更新撤销按钮状态。
+     *
+     * @param canUndo true 表示当前可以撤销；false 表示不能撤销。
+     */
+    void canUndoChanged(bool canUndo);
+
+    /**
+     * @brief 重做可用状态变化信号。
+     *
+     * 当撤销栈的 canRedo 状态发生变化时发出，
+     * 外部可连接此信号自动更新重做按钮状态。
+     *
+     * @param canRedo true 表示当前可以重做；false 表示不能重做。
+     */
+    void canRedoChanged(bool canRedo);
+
 protected:
     /**
      * @brief 重写按键事件，支持快捷键切换模式。
@@ -63,21 +122,6 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
-    /**
-     * @brief 切换绘制/选择模式。
-     */
-    void toggleDrawSelectMode();
-
-    /**
-     * @brief 执行撤销操作。
-     */
-    void onUndo();
-
-    /**
-     * @brief 执行重做操作。
-     */
-    void onRedo();
-
     /**
      * @brief 更新撤销/重做按钮状态。
      */

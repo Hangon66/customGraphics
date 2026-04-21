@@ -58,6 +58,36 @@ void CustomGraphicsWidget::toggleDrawSelectMode()
     }
 }
 
+void CustomGraphicsWidget::setDrawMode()
+{
+    if (m_drawHandler && !m_drawHandler->isDrawingActive()) {
+        m_drawHandler->setDrawingActive(true);
+        updateModeDisplay();
+    }
+}
+
+void CustomGraphicsWidget::setSelectMode()
+{
+    if (m_drawHandler && m_drawHandler->isDrawingActive()) {
+        m_drawHandler->setDrawingActive(false);
+        updateModeDisplay();
+    }
+}
+
+void CustomGraphicsWidget::undo()
+{
+    if (m_view) {
+        m_view->undo();
+    }
+}
+
+void CustomGraphicsWidget::redo()
+{
+    if (m_view) {
+        m_view->redo();
+    }
+}
+
 void CustomGraphicsWidget::initStoneCuttingScene()
 {
     // 获取石材切割场景配置
@@ -145,7 +175,7 @@ void CustomGraphicsWidget::initToolBar()
         "QPushButton { padding: 5px 10px; border-radius: 3px; }"
         "QPushButton:enabled { background-color: #607D8B; color: white; }"
         "QPushButton:disabled { background-color: #ccc; color: #666; }");
-    connect(m_undoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::onUndo);
+    connect(m_undoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::undo);
 
     m_redoButton = new QPushButton("重做", toolBar);
     m_redoButton->setFixedWidth(60);
@@ -155,7 +185,7 @@ void CustomGraphicsWidget::initToolBar()
         "QPushButton { padding: 5px 10px; border-radius: 3px; }"
         "QPushButton:enabled { background-color: #607D8B; color: white; }"
         "QPushButton:disabled { background-color: #ccc; color: #666; }");
-    connect(m_redoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::onRedo);
+    connect(m_redoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::redo);
 
     // 模式状态标签
     m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", toolBar);
@@ -297,28 +327,21 @@ void CustomGraphicsWidget::connectHandlers()
     }
 }
 
-void CustomGraphicsWidget::onUndo()
-{
-    if (m_view) {
-        m_view->undo();
-    }
-}
-
-void CustomGraphicsWidget::onRedo()
-{
-    if (m_view) {
-        m_view->redo();
-    }
-}
-
 void CustomGraphicsWidget::updateUndoRedoState()
 {
     if (m_view) {
+        bool canUndo = m_view->canUndo();
+        bool canRedo = m_view->canRedo();
+
         if (m_undoButton) {
-            m_undoButton->setEnabled(m_view->canUndo());
+            m_undoButton->setEnabled(canUndo);
         }
         if (m_redoButton) {
-            m_redoButton->setEnabled(m_view->canRedo());
+            m_redoButton->setEnabled(canRedo);
         }
+
+        // 发射信号，通知外部按钮状态变化
+        emit canUndoChanged(canUndo);
+        emit canRedoChanged(canRedo);
     }
 }
