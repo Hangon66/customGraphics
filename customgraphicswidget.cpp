@@ -290,15 +290,10 @@ void CustomGraphicsWidget::addTestItems()
     }
     painter.end();
     
-    // 设置场景背景图片（自动设置边界约束和场景大小）
+    // 设置场景背景图片（自动设置边界约束和场景大小，并通过信号同步到 DrawHandler）
     m_scene->setBackgroundPixmap(bgPixmap);
     qDebug() << "设置背景图片，尺寸:" << bgPixmap.width() << "x" << bgPixmap.height();
     qDebug() << "边界约束:" << m_scene->boundaryConstraint();
-    
-    // 同步设置 DrawHandler 的边界约束
-    if (m_drawHandler) {
-        m_drawHandler->setBoundaryConstraint(m_scene->boundaryConstraint());
-    }
 
     // 添加已有切割区域示例
     auto *cutArea1 = new LabeledRectItem(50, 50, 150, 100);

@@ -97,11 +97,13 @@ bool CustomGraphicsScene::isCollisionEnabled() const
 void CustomGraphicsScene::setBoundaryConstraint(const QRectF &boundary)
 {
     m_boundaryConstraint = boundary;
+    emit boundaryConstraintChanged(boundary);
 }
 
 void CustomGraphicsScene::clearBoundaryConstraint()
 {
     m_boundaryConstraint = QRectF();
+    emit boundaryConstraintChanged(m_boundaryConstraint);
 }
 
 QRectF CustomGraphicsScene::boundaryConstraint() const
@@ -124,6 +126,7 @@ void CustomGraphicsScene::setBackgroundPixmap(const QPixmap &pixmap)
         // 自动设置边界约束为图片大小
         QRectF pixmapRect(0, 0, pixmap.width(), pixmap.height());
         m_boundaryConstraint = pixmapRect;
+        emit boundaryConstraintChanged(pixmapRect);
         // 场景大小保持足够大，允许视图拖拽到空白区域
         // 设置一个足够大的场景区域，以背景图片为中心
         qreal margin = 5000;  // 边距，允许拖拽的范围
@@ -134,6 +137,7 @@ void CustomGraphicsScene::setBackgroundPixmap(const QPixmap &pixmap)
         // 清除背景图片时同时清除边界约束
         m_boundaryConstraint = QRectF();
         setSceneRect(-5000, -5000, 10000, 10000);
+        emit boundaryConstraintChanged(m_boundaryConstraint);
     }
 
     invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);

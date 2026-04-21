@@ -203,6 +203,16 @@ signals:
      */
     void itemMoved(QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos);
 
+    /**
+     * @brief 边界约束变化信号。
+     *
+     * 当场景边界约束发生变化时发出，包括设置、更新或清除约束。
+     * 外部（如 DrawHandler）可连接此信号以同步自身的边界约束。
+     *
+     * @param boundary 新的边界约束矩形；空矩形表示无约束。
+     */
+    void boundaryConstraintChanged(const QRectF &boundary);
+
 protected:
     /**
      * @brief 绘制场景背景，包含网格线。
