@@ -34,6 +34,7 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     , m_modeLabel(nullptr)
     , m_undoButton(nullptr)
     , m_redoButton(nullptr)
+    , m_toolBar(nullptr)
 {
     ui->setupUi(this);
     initStoneCuttingScene();
@@ -91,6 +92,18 @@ void CustomGraphicsWidget::redo()
 bool CustomGraphicsWidget::isDrawingActive() const
 {
     return m_drawHandler ? m_drawHandler->isDrawingActive() : false;
+}
+
+void CustomGraphicsWidget::setToolBarVisible(bool visible)
+{
+    if (m_toolBar) {
+        m_toolBar->setVisible(visible);
+    }
+}
+
+bool CustomGraphicsWidget::isToolBarVisible() const
+{
+    return m_toolBar ? m_toolBar->isVisible() : false;
 }
 
 void CustomGraphicsWidget::initStoneCuttingScene()
@@ -152,48 +165,57 @@ void CustomGraphicsWidget::initStoneCuttingScene()
 void CustomGraphicsWidget::initToolBar()
 {
     // 创建工具栏容器
-    QWidget *toolBar = new QWidget(this);
-    toolBar->setFixedHeight(40);
-    toolBar->setStyleSheet("background-color: #f0f0f0; border-bottom: 1px solid #ccc;");
+    m_toolBar = new QWidget(this);
+    m_toolBar->setFixedHeight(40);
+    m_toolBar->setStyleSheet("background-color: #f0f0f0; border-bottom: 1px solid #ccc;");
 
-    QHBoxLayout *toolLayout = new QHBoxLayout(toolBar);
+    QHBoxLayout *toolLayout = new QHBoxLayout(m_toolBar);
     toolLayout->setContentsMargins(10, 5, 10, 5);
     toolLayout->setSpacing(10);
 
     // 模式切换按钮
-    m_modeButton = new QPushButton("绘制模式", toolBar);
+    m_modeButton = new QPushButton("绘制模式", m_toolBar);
     m_modeButton->setCheckable(true);
     m_modeButton->setChecked(true);
     m_modeButton->setFixedWidth(100);
     m_modeButton->setStyleSheet(
-        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
+        "QPushButton { padding: 5px 10px; border-radius: 3px; border: none; }"
         "QPushButton:checked { background-color: #4CAF50; color: white; }"
-        "QPushButton:!checked { background-color: #2196F3; color: white; }");
+        "QPushButton:checked:hover { background-color: #43A047; }"
+        "QPushButton:checked:pressed { background-color: #388E3C; }"
+        "QPushButton:!checked { background-color: #2196F3; color: white; }"
+        "QPushButton:!checked:hover { background-color: #1E88E5; }"
+        "QPushButton:!checked:pressed { background-color: #1976D2; }");
     connect(m_modeButton, &QPushButton::clicked, this, &CustomGraphicsWidget::toggleDrawSelectMode);
 
-    // 撤销/重做按钮
-    m_undoButton = new QPushButton("撤销", toolBar);
+    // 撤销按钮 - 可用时橙色，表示"回退"操作
+    m_undoButton = new QPushButton("撤销", m_toolBar);
     m_undoButton->setFixedWidth(60);
     m_undoButton->setEnabled(false);
     m_undoButton->setToolTip("Ctrl+Z");
     m_undoButton->setStyleSheet(
-        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
-        "QPushButton:enabled { background-color: #607D8B; color: white; }"
-        "QPushButton:disabled { background-color: #ccc; color: #666; }");
+        "QPushButton { padding: 5px 10px; border-radius: 3px; border: none; }"
+        "QPushButton:enabled { background-color: #FF9800; color: white; }"
+        "QPushButton:enabled:hover { background-color: #F57C00; }"
+        "QPushButton:enabled:pressed { background-color: #E65100; }"
+        "QPushButton:disabled { background-color: #E0E0E0; color: #9E9E9E; }");
     connect(m_undoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::undo);
 
-    m_redoButton = new QPushButton("重做", toolBar);
+    // 重做按钮 - 可用时青色，表示"前进"操作
+    m_redoButton = new QPushButton("重做", m_toolBar);
     m_redoButton->setFixedWidth(60);
     m_redoButton->setEnabled(false);
     m_redoButton->setToolTip("Ctrl+Y");
     m_redoButton->setStyleSheet(
-        "QPushButton { padding: 5px 10px; border-radius: 3px; }"
-        "QPushButton:enabled { background-color: #607D8B; color: white; }"
-        "QPushButton:disabled { background-color: #ccc; color: #666; }");
+        "QPushButton { padding: 5px 10px; border-radius: 3px; border: none; }"
+        "QPushButton:enabled { background-color: #00BCD4; color: white; }"
+        "QPushButton:enabled:hover { background-color: #00ACC1; }"
+        "QPushButton:enabled:pressed { background-color: #0097A7; }"
+        "QPushButton:disabled { background-color: #E0E0E0; color: #9E9E9E; }");
     connect(m_redoButton, &QPushButton::clicked, this, &CustomGraphicsWidget::redo);
 
     // 模式状态标签
-    m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", toolBar);
+    m_modeLabel = new QLabel("当前: 绘制模式 (按 D 切换)", m_toolBar);
     m_modeLabel->setStyleSheet("color: #333;");
 
     toolLayout->addWidget(m_modeButton);
@@ -203,7 +225,7 @@ void CustomGraphicsWidget::initToolBar()
     toolLayout->addStretch();
 
     // 帮助提示
-    QLabel *helpLabel = new QLabel("滚轮缩放 | 中键平移 | 左键绘制/选择 | Delete删除 | Esc取消", toolBar);
+    QLabel *helpLabel = new QLabel("滚轮缩放 | 中键平移 | 左键绘制/选择 | Delete删除 | Esc取消", m_toolBar);
     helpLabel->setStyleSheet("color: #666; font-size: 11px;");
     toolLayout->addWidget(helpLabel);
 
@@ -211,7 +233,7 @@ void CustomGraphicsWidget::initToolBar()
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
-    mainLayout->addWidget(toolBar);
+    mainLayout->addWidget(m_toolBar);
     mainLayout->addWidget(m_view);
 
     // 更新模式显示

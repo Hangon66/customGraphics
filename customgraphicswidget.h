@@ -99,6 +99,20 @@ public:
      */
     bool isDrawingActive() const;
 
+    /**
+     * @brief 设置工具栏是否可见。
+     *
+     * @param visible true 显示工具栏；false 隐藏工具栏。
+     */
+    void setToolBarVisible(bool visible);
+
+    /**
+     * @brief 获取工具栏是否可见。
+     *
+     * @return true 工具栏可见；false 工具栏隐藏。
+     */
+    bool isToolBarVisible() const;
+
 signals:
     /**
      * @brief 撤销可用状态变化信号。
@@ -219,5 +233,10 @@ private:
      * @brief 重做按钮。
      */
     QPushButton *m_redoButton;
+
+    /**
+     * @brief 工具栏容器。
+     */
+    QWidget *m_toolBar;
 };
 #endif // CUSTOMGRAPHICSWIDGET_H
