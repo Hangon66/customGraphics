@@ -23,6 +23,8 @@ qt_add_executable(customGraphics
     handlers/BackgroundHandler.cpp
     handlers/RulerHandler.h
     handlers/RulerHandler.cpp
+    handlers/GuideLineHandler.h
+    handlers/GuideLineHandler.cpp
     handlers/DrawHandler.h
     handlers/DrawHandler.cpp
     handlers/DragDropHandler.h

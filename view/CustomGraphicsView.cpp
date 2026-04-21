@@ -4,6 +4,7 @@
 #include "../handlers/PanHandler.h"
 #include "../handlers/RubberBandHandler.h"
 #include "../handlers/RulerHandler.h"
+#include "../handlers/GuideLineHandler.h"
 #include "../commands/ShapeCommands.h"
 
 #include <QMouseEvent>
@@ -322,6 +323,12 @@ void CustomGraphicsView::paintEvent(QPaintEvent *event)
             QPainter painter(viewport());
             painter.setRenderHint(QPainter::Antialiasing, false);
             rulerHandler->paint(&painter, this);
+        }
+        // 检查是否是 GuideLineHandler 并调用其 paint 方法
+        if (auto *guideHandler = dynamic_cast<GuideLineHandler*>(handler)) {
+            QPainter painter(viewport());
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            guideHandler->paint(&painter, this);
         }
     }
 }

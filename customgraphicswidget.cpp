@@ -5,6 +5,7 @@
 #include "handlers/SceneConfig.h"
 #include "handlers/BackgroundHandler.h"
 #include "handlers/RulerHandler.h"
+#include "handlers/GuideLineHandler.h"
 #include "handlers/DrawHandler.h"
 #include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
@@ -29,6 +30,7 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     , m_view(nullptr)
     , m_backgroundHandler(nullptr)
     , m_rulerHandler(nullptr)
+    , m_guideLineHandler(nullptr)
     , m_drawHandler(nullptr)
     , m_modeButton(nullptr)
     , m_modeLabel(nullptr)
@@ -144,6 +146,13 @@ void CustomGraphicsWidget::initStoneCuttingScene()
             m_drawHandler->setUndoStack(m_view->undoStack());
         }
     }
+
+    // 创建并注册辅助线处理器
+    m_guideLineHandler = new GuideLineHandler(80, this);
+    if (m_rulerHandler) {
+        m_guideLineHandler->setRulerWidth(m_rulerHandler->rulerWidth());
+    }
+    m_view->addHandler(m_guideLineHandler);
 
     // 连接撤销栈变化信号，更新按钮状态
     connect(m_view->undoStack(), &QUndoStack::canUndoChanged,

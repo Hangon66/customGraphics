@@ -13,6 +13,7 @@ class CustomGraphicsView;
 class CustomGraphicsScene;
 class BackgroundHandler;
 class RulerHandler;
+class GuideLineHandler;
 class DrawHandler;
 class LabeledRectItem;
 class QPushButton;
@@ -208,6 +209,11 @@ private:
      * @brief 标尺处理器。
      */
     RulerHandler *m_rulerHandler;
+
+    /**
+     * @brief 辅助线处理器。
+     */
+    GuideLineHandler *m_guideLineHandler;
 
     /**
      * @brief 绘制处理器。
