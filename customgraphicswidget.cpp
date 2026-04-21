@@ -88,6 +88,11 @@ void CustomGraphicsWidget::redo()
     }
 }
 
+bool CustomGraphicsWidget::isDrawingActive() const
+{
+    return m_drawHandler ? m_drawHandler->isDrawingActive() : false;
+}
+
 void CustomGraphicsWidget::initStoneCuttingScene()
 {
     // 获取石材切割场景配置
@@ -227,6 +232,9 @@ void CustomGraphicsWidget::updateModeDisplay()
     m_modeLabel->setText(isDrawMode ?
         "当前: 绘制模式 (按 D 切换)" :
         "当前: 选择模式 (按 D 切换)");
+
+    // 发射信号，通知外部模式状态变化
+    emit drawingActiveChanged(isDrawMode);
 
     // 确保视图有焦点以接收按键事件
     if (m_view) {

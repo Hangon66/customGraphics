@@ -92,6 +92,13 @@ public:
      */
     void redo();
 
+    /**
+     * @brief 获取当前是否为绘制模式。
+     *
+     * @return true 表示当前为绘制模式；false 表示为选择模式。
+     */
+    bool isDrawingActive() const;
+
 signals:
     /**
      * @brief 撤销可用状态变化信号。
@@ -112,6 +119,16 @@ signals:
      * @param canRedo true 表示当前可以重做；false 表示不能重做。
      */
     void canRedoChanged(bool canRedo);
+
+    /**
+     * @brief 绘制模式状态变化信号。
+     *
+     * 当绘制/选择模式发生切换时发出，
+     * 外部可连接此信号同步模式按钮显示状态。
+     *
+     * @param active true 表示当前为绘制模式；false 表示为选择模式。
+     */
+    void drawingActiveChanged(bool active);
 
 protected:
     /**
