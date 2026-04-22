@@ -36,13 +36,6 @@ PropertyPanel::~PropertyPanel()
 
 void PropertyPanel::initUI()
 {
-    setStyleSheet(
-        "QWidget { background-color: #f8f8f8; }"
-        "QLabel { color: #333; }"
-        "QLineEdit { padding: 3px; border: 1px solid #ccc; border-radius: 2px; }"
-        "QDoubleSpinBox { padding: 3px; border: 1px solid #ccc; border-radius: 2px; }"
-        "QPushButton { padding: 4px 8px; border: none; border-radius: 2px; }");
-
     // 顶层水平布局：左侧折叠按钮条 + 右侧面板主体
     QHBoxLayout *topLayout = new QHBoxLayout(this);
     topLayout->setContentsMargins(0, 0, 0, 0);
@@ -51,7 +44,7 @@ void PropertyPanel::initUI()
     // ====== 左侧折叠/展开按钮条（始终可见）======
     m_toggleBar = new QWidget(this);
     m_toggleBar->setFixedWidth(20);
-    m_toggleBar->setStyleSheet("background-color: #e0e0e0; border-right: 1px solid #ccc;");
+
     QVBoxLayout *toggleBarLayout = new QVBoxLayout(m_toggleBar);
     toggleBarLayout->setContentsMargins(0, 0, 0, 0);
     toggleBarLayout->setSpacing(0);
@@ -60,9 +53,7 @@ void PropertyPanel::initUI()
     m_toggleButton->setFixedWidth(18);
     m_toggleButton->setFixedHeight(24);
     m_toggleButton->setText("<");
-    m_toggleButton->setStyleSheet(
-        "QPushButton { color: #666; font-size: 14px; font-weight: bold; background-color: #ddd; padding: 0px; }"
-        "QPushButton:hover { color: #333; background-color: #ccc; }");
+
     connect(m_toggleButton, &QPushButton::clicked, this, &PropertyPanel::togglePanel);
     toggleBarLayout->addWidget(m_toggleButton);
     toggleBarLayout->addStretch();
@@ -79,12 +70,12 @@ void PropertyPanel::initUI()
     // 标题栏
     QWidget *titleBar = new QWidget(m_panelBody);
     titleBar->setFixedHeight(30);
-    titleBar->setStyleSheet("background-color: #e0e0e0; border-bottom: 1px solid #ccc;");
+
     QHBoxLayout *titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(8, 0, 4, 0);
 
     m_titleLabel = new QLabel("属性", titleBar);
-    m_titleLabel->setStyleSheet("font-weight: bold; font-size: 12px;");
+
     titleLayout->addWidget(m_titleLabel);
     titleLayout->addStretch();
 
@@ -122,7 +113,7 @@ void PropertyPanel::initUI()
     // 未选中提示
     m_noSelectionLabel = new QLabel("未选中图元", m_panelBody);
     m_noSelectionLabel->setAlignment(Qt::AlignCenter);
-    m_noSelectionLabel->setStyleSheet("color: #999; font-size: 12px; padding: 20px;");
+
     panelBodyLayout->addWidget(m_noSelectionLabel);
 
     topLayout->addWidget(m_panelBody);
@@ -219,7 +210,6 @@ void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
             spin->setSingleStep(1.0);
             spin->setValue(field.toDouble());
             spin->setEnabled(field.isEditable());
-            spin->setStyleSheet(field.isEditable() ? "" : "QDoubleSpinBox { background-color: #eee; color: #666; }");
             connect(spin, &QDoubleSpinBox::editingFinished, this, [this, key, spin]() {
                 if (m_updating || !m_currentItem) return;
                 qDebug() << "[PropertyPanel] spin editingFinished: key=" << key << "value=" << spin->value();
@@ -236,7 +226,6 @@ void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
         } else if (field.propType() == PropType::Bool) {
             QLineEdit *edit = new QLineEdit(field.toBool() ? "true" : "false", m_contentWidget);
             edit->setEnabled(false);
-            edit->setStyleSheet("QLineEdit { background-color: #eee; color: #666; }");
             rowLayout->addWidget(edit);
             m_dynamicWidgets.append(edit);
             m_propWidgets[key] = edit;
@@ -244,7 +233,6 @@ void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
             // PropType::Text 使用 QLineEdit
             QLineEdit *edit = new QLineEdit(field.toString(), m_contentWidget);
             edit->setEnabled(field.isEditable());
-            edit->setStyleSheet(field.isEditable() ? "" : "QLineEdit { background-color: #eee; color: #666; }");
             connect(edit, &QLineEdit::editingFinished, this, [this, key, edit]() {
                 if (m_updating || !m_currentItem) return;
                 qDebug() << "[PropertyPanel] text editingFinished: key=" << key << "value=" << edit->text();
