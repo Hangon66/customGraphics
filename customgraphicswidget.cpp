@@ -9,10 +9,13 @@
 #include "handlers/DrawHandler.h"
 #include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
+#include "view/PropertyPanel.h"
+#include "view/ShapeMetadata.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGraphicsRectItem>
+#include <QGraphicsLineItem>
 #include <QPen>
 #include <QBrush>
 #include <QDebug>
@@ -37,6 +40,7 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     , m_undoButton(nullptr)
     , m_redoButton(nullptr)
     , m_toolBar(nullptr)
+    , m_propertyPanel(nullptr)
 {
     ui->setupUi(this);
     initStoneCuttingScene();
@@ -243,7 +247,22 @@ void CustomGraphicsWidget::initToolBar()
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     mainLayout->addWidget(m_toolBar);
-    mainLayout->addWidget(m_view);
+
+    // 视图和属性面板并排
+    QHBoxLayout *contentLayout = new QHBoxLayout();
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(0);
+    contentLayout->addWidget(m_view, 1);
+
+    // 创建属性面板
+    m_propertyPanel = new PropertyPanel(this);
+    contentLayout->addWidget(m_propertyPanel);
+
+    // 连接属性面板信号（必须在 m_propertyPanel 创建之后）
+    connect(m_propertyPanel, &PropertyPanel::propertyChanged,
+            this, &CustomGraphicsWidget::onPropertyChanged);
+
+    mainLayout->addLayout(contentLayout);
 
     // 更新模式显示
     updateModeDisplay();
@@ -301,8 +320,14 @@ void CustomGraphicsWidget::addTestItems()
     cutArea1->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea1->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea1->setFlag(QGraphicsItem::ItemIsMovable);
-    cutArea1->setData(0, "CutArea");
-    cutArea1->setData(2, "切割区域_1");
+    cutArea1->setData(ShapeMeta::Category, "CutArea");
+    cutArea1->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
+    cutArea1->setData(ShapeMeta::Name, "切割区域_1");
+    PropMap props1;
+    props1["typeName"] = PropField("切割区域", "类型:", PropType::Text, true, false);
+    props1["width"] = PropField(150.0, "宽度:", PropType::Number, true, true);
+    props1["height"] = PropField(100.0, "高度:", PropType::Number, true, true);
+    cutArea1->setData(ShapeMeta::Props, QVariant::fromValue(props1));
     cutArea1->setLabelText("切割区域_1");
     m_scene->addItem(cutArea1);
 
@@ -311,8 +336,14 @@ void CustomGraphicsWidget::addTestItems()
     cutArea2->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea2->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea2->setFlag(QGraphicsItem::ItemIsMovable);
-    cutArea2->setData(0, "CutArea");
-    cutArea2->setData(2, "切割区域_2");
+    cutArea2->setData(ShapeMeta::Category, "CutArea");
+    cutArea2->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
+    cutArea2->setData(ShapeMeta::Name, "切割区域_2");
+    PropMap props2;
+    props2["typeName"] = PropField("切割区域", "类型:", PropType::Text, true, false);
+    props2["width"] = PropField(200.0, "宽度:", PropType::Number, true, true);
+    props2["height"] = PropField(150.0, "高度:", PropType::Number, true, true);
+    cutArea2->setData(ShapeMeta::Props, QVariant::fromValue(props2));
     cutArea2->setLabelText("切割区域_2");
     m_scene->addItem(cutArea2);
 }
@@ -339,6 +370,16 @@ void CustomGraphicsWidget::connectHandlers()
             Q_UNUSED(active)
             updateModeDisplay();
         });
+
+        // 同步场景边界约束到 DrawHandler，限制绘制范围
+        if (m_scene) {
+            connect(m_scene, &CustomGraphicsScene::boundaryConstraintChanged,
+                    m_drawHandler, &DrawHandler::setBoundaryConstraint);
+            // 初始同步：将场景当前边界约束传递给 DrawHandler
+            if (m_scene->hasBoundaryConstraint()) {
+                m_drawHandler->setBoundaryConstraint(m_scene->boundaryConstraint());
+            }
+        }
     }
 
     // 连接背景加载信号
@@ -357,6 +398,20 @@ void CustomGraphicsWidget::connectHandlers()
             MoveShapeCommand *cmd = new MoveShapeCommand(item, oldPos, newPos);
             m_view->undoStack()->push(cmd);
             // 不增加计数器，因为 push 会自动调用 redo
+            // 同步更新属性面板
+            onItemMovedForPanel(item, oldPos, newPos);
+        });
+
+        // 连接选择变化信号，更新属性面板
+        connect(m_scene, &QGraphicsScene::selectionChanged,
+                this, &CustomGraphicsWidget::onSelectionChanged);
+
+        // 连接拖动过程信号，实时刷新属性面板
+        connect(m_scene, &CustomGraphicsScene::itemMoving,
+                this, [this](QGraphicsItem *item) {
+            if (m_propertyPanel && item && item == m_scene->selectedItems().value(0)) {
+                m_propertyPanel->updateFromItem(item);
+            }
         });
     }
 }
@@ -377,5 +432,106 @@ void CustomGraphicsWidget::updateUndoRedoState()
         // 发射信号，通知外部按钮状态变化
         emit canUndoChanged(canUndo);
         emit canRedoChanged(canRedo);
+    }
+}
+
+void CustomGraphicsWidget::onSelectionChanged()
+{
+    if (!m_propertyPanel || !m_scene) {
+        return;
+    }
+
+    QList<QGraphicsItem*> selected = m_scene->selectedItems();
+    if (selected.size() == 1) {
+        m_propertyPanel->updateFromItem(selected.first());
+    } else {
+        m_propertyPanel->clearPanel();
+    }
+}
+
+void CustomGraphicsWidget::onItemMovedForPanel(QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos)
+{
+    Q_UNUSED(oldPos)
+    Q_UNUSED(newPos)
+    if (m_propertyPanel && item && item == m_scene->selectedItems().value(0)) {
+        m_propertyPanel->updateFromItem(item);
+    }
+}
+
+void CustomGraphicsWidget::onPropertyChanged(QGraphicsItem *item, const QString &key, const QVariant &value)
+{
+    if (!item) {
+        return;
+    }
+
+    qDebug() << "[CustomGraphicsWidget] onPropertyChanged: key=" << key << "value=" << value;
+
+    bool needRefreshPanel = false;
+
+    // 处理几何属性编辑，写回图元实际几何
+    if (key == "x" || key == "y") {
+        double newVal = value.toDouble();
+        if (auto *rectItem = dynamic_cast<QGraphicsRectItem*>(item)) {
+            QRectF r = rectItem->rect();
+            QPointF visualPos = rectItem->pos() + r.topLeft();
+            if (key == "x") {
+                visualPos.setX(newVal);
+            } else {
+                visualPos.setY(newVal);
+            }
+            // 修正 pos：视觉位置 - rect 偏移
+            rectItem->setPos(visualPos - r.topLeft());
+        } else if (auto *lineItem = dynamic_cast<QGraphicsLineItem*>(item)) {
+            QLineF l = lineItem->line();
+            QPointF visualPos = lineItem->pos() + l.p1();
+            if (key == "x") {
+                visualPos.setX(newVal);
+            } else {
+                visualPos.setY(newVal);
+            }
+            // 修正 pos：视觉位置 - line.p1 偏移
+            lineItem->setPos(visualPos - l.p1());
+        }
+        needRefreshPanel = true;
+    } else if (key == "width" || key == "height") {
+        if (auto *rectItem = dynamic_cast<QGraphicsRectItem*>(item)) {
+            QRectF r = rectItem->rect();
+            if (key == "width") {
+                r.setWidth(value.toDouble());
+            } else {
+                r.setHeight(value.toDouble());
+            }
+            rectItem->setRect(r);
+        }
+        needRefreshPanel = true;
+    } else if (key == "length") {
+        if (auto *lineItem = dynamic_cast<QGraphicsLineItem*>(item)) {
+            QLineF l = lineItem->line();
+            double newLength = value.toDouble();
+            if (newLength > 0 && l.length() > 0) {
+                // 按方向缩放线条长度
+                QPointF unitDir = (l.p2() - l.p1()) / l.length();
+                l.setP2(l.p1() + unitDir * newLength);
+                lineItem->setLine(l);
+            }
+        }
+        needRefreshPanel = true;
+    }
+
+    // 刷新场景显示
+    if (m_scene) {
+        m_scene->update();
+    }
+
+    // 名称变更，更新图元标签
+    if (key == "name") {
+        if (m_propertyPanel) {
+            m_propertyPanel->updateFromItem(item);
+        }
+    }
+
+    // 几何属性变更后刷新面板（确保坐标补偿后显示正确）
+    if (needRefreshPanel && m_propertyPanel) {
+        m_propertyPanel->updateFromItem(item);
     }
 }

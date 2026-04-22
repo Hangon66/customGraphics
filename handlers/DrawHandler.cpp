@@ -2,6 +2,7 @@
 #include "CollisionHandler.h"
 #include "../commands/ShapeCommands.h"
 #include "../view/CustomGraphicsScene.h"
+#include "../view/ShapeMetadata.h"
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
@@ -17,20 +18,18 @@
 #include <QUndoStack>
 #include <cmath>
 
-// ==================== 辅助函数 ====================
+// ==================== LabeledRectItem 实现 ====================
 
-/**
- * @brief 将 DrawHandler::ShapeType 转换为 CollisionShapeType。
- */
-static CollisionShapeType toCollisionShapeType(DrawHandler::ShapeType type)
+// 将 DrawHandler::ShapeType 转换为 ShapeMeta::Type 的辅助函数
+static ShapeMeta::Type toShapeMetaType(DrawHandler::ShapeType type)
 {
     switch (type) {
     case DrawHandler::ShapeType::Rect:
-        return CollisionShapeType::Rect;
+        return ShapeMeta::Rect;
     case DrawHandler::ShapeType::Line:
-        return CollisionShapeType::Line;
+        return ShapeMeta::Line;
     default:
-        return CollisionShapeType::Unknown;
+        return ShapeMeta::Unknown;
     }
 }
 
@@ -360,7 +359,7 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
         }
 
         // 将绘制类型转换为碰撞类型
-        CollisionShapeType sourceCollisionType = toCollisionShapeType(drawType);
+        ShapeMeta::Type sourceCollisionType = toShapeMetaType(drawType);
 
         QGraphicsItem *itemAtStart = CollisionHandler::pointInAnyItemWithConfig(
             m_scene, scenePos, nullptr, sourceCollisionType, *config);
@@ -697,9 +696,16 @@ void DrawHandler::finishRect()
     // 设置图形属性
     m_rectPreview->setFlag(QGraphicsItem::ItemIsSelectable);
     m_rectPreview->setFlag(QGraphicsItem::ItemIsMovable);
-    m_rectPreview->setData(0, "DrawShape");
-    m_rectPreview->setData(1, static_cast<int>(ShapeType::Rect));
-    m_rectPreview->setData(2, name);
+    m_rectPreview->setData(ShapeMeta::Category, "DrawShape");
+    m_rectPreview->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
+    m_rectPreview->setData(ShapeMeta::Name, name);
+    PropMap rectProps;
+    rectProps["typeName"] = PropField("矩形", "类型:", PropType::Text, true, false);
+    rectProps["x"] = PropField(0.0, "X:", PropType::Number, true, true);
+    rectProps["y"] = PropField(0.0, "Y:", PropType::Number, true, true);
+    rectProps["width"] = PropField(0.0, "宽度:", PropType::Number, true, true);
+    rectProps["height"] = PropField(0.0, "高度:", PropType::Number, true, true);
+    m_rectPreview->setData(ShapeMeta::Props, QVariant::fromValue(rectProps));
 
     // 设置矩形内的标签文本
     m_rectPreview->setLabelText(name);
@@ -769,9 +775,15 @@ void DrawHandler::finishLine()
     // 设置图形属性
     m_linePreview->setFlag(QGraphicsItem::ItemIsSelectable);
     m_linePreview->setFlag(QGraphicsItem::ItemIsMovable);
-    m_linePreview->setData(0, "DrawShape");
-    m_linePreview->setData(1, static_cast<int>(ShapeType::Line));
-    m_linePreview->setData(2, name);
+    m_linePreview->setData(ShapeMeta::Category, "DrawShape");
+    m_linePreview->setData(ShapeMeta::ShapeType, ShapeMeta::Line);
+    m_linePreview->setData(ShapeMeta::Name, name);
+    PropMap lineProps;
+    lineProps["typeName"] = PropField("线条", "类型:", PropType::Text, true, false);
+    lineProps["x"] = PropField(0.0, "X:", PropType::Number, true, true);
+    lineProps["y"] = PropField(0.0, "Y:", PropType::Number, true, true);
+    lineProps["length"] = PropField(0.0, "长度:", PropType::Number, true, true);
+    m_linePreview->setData(ShapeMeta::Props, QVariant::fromValue(lineProps));
 
     // 设置线条标签文本
     m_linePreview->setLabelText(name);

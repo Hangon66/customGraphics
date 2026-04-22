@@ -15,6 +15,9 @@ class BackgroundHandler;
 class RulerHandler;
 class GuideLineHandler;
 class DrawHandler;
+class PropertyPanel;
+class QGraphicsItem;
+class QVariant;
 class LabeledRectItem;
 class QPushButton;
 class QLabel;
@@ -159,6 +162,29 @@ private slots:
      */
     void updateUndoRedoState();
 
+    /**
+     * @brief 场景选择变化时更新属性面板。
+     */
+    void onSelectionChanged();
+
+    /**
+     * @brief 图元移动后更新属性面板位置显示。
+     *
+     * @param item 被移动的图元。
+     * @param oldPos 移动前的位置。
+     * @param newPos 移动后的位置。
+     */
+    void onItemMovedForPanel(QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos);
+
+    /**
+     * @brief 属性面板编辑后刷新图元显示。
+     *
+     * @param item 被编辑的图元。
+     * @param key 修改的属性键名。
+     * @param value 修改后的值。
+     */
+    void onPropertyChanged(QGraphicsItem *item, const QString &key, const QVariant &value);
+
 private:
     /**
      * @brief 初始化石材切割场景。
@@ -244,5 +270,10 @@ private:
      * @brief 工具栏容器。
      */
     QWidget *m_toolBar;
+
+    /**
+     * @brief 属性面板。
+     */
+    PropertyPanel *m_propertyPanel;
 };
 #endif // CUSTOMGRAPHICSWIDGET_H

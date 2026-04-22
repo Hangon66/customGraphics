@@ -326,6 +326,7 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
     if (!CollisionHandler::isCollisionItem(item)) {
         // 仅应用边界约束
         applyBoundaryConstraint(item);
+        emit itemMoving(item);
         return;
     }
 
@@ -335,7 +336,7 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
     // 碰撞检测处理（如果启用）
     if (m_collisionEnabled) {
         // 获取源图元类型
-        CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+        ShapeMeta::Type sourceType = CollisionHandler::getShapeType(item);
 
         // 获取场景中其他可能阻挡的图元
         QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
@@ -375,6 +376,9 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
         // 无碰撞检测时，仅应用边界约束
         applyBoundaryConstraint(item);
     }
+
+    // 通知属性面板实时刷新
+    emit itemMoving(item);
 }
 
 void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, const QList<QGraphicsItem*> &selected)
@@ -415,7 +419,7 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
 
         // 碰撞检测
         if (m_collisionEnabled) {
-            CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+            ShapeMeta::Type sourceType = CollisionHandler::getShapeType(item);
             QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
 
             for (QGraphicsItem *obstacle : obstacles) {
@@ -500,7 +504,7 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
             QRectF itemShapeRect = item->shape().boundingRect();
             QRectF finalItemRect = itemShapeRect.translated(item->pos());
 
-            CollisionShapeType sourceType = CollisionHandler::getShapeType(item);
+            ShapeMeta::Type sourceType = CollisionHandler::getShapeType(item);
             QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
 
             for (QGraphicsItem *obstacle : obstacles) {
@@ -522,9 +526,14 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
             }
         }
     }
+
+    // 通知属性面板实时刷新（只通知第一个选中图元，面板只显示单选）
+    if (!selected.isEmpty()) {
+        emit itemMoving(selected.first());
+    }
 }
 
-QList<QGraphicsItem*> CustomGraphicsScene::getObstacles(QGraphicsItem *source, CollisionShapeType sourceType)
+QList<QGraphicsItem*> CustomGraphicsScene::getObstacles(QGraphicsItem *source, ShapeMeta::Type sourceType)
 {
     QList<QGraphicsItem*> allItems = QGraphicsScene::items();
     QList<QGraphicsItem*> obstacles;

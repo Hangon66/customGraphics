@@ -195,13 +195,23 @@ signals:
     /**
      * @brief 图元移动完成信号。
      *
-     * 当图元被拖拽移动后发出，包含移动前后的位置信息。
+     * 当图元被拖拽移动后（鼠标释放时）发出，包含移动前后的位置信息。
+     * 用于撤销栈记录等一次性操作。
      *
      * @param item 被移动的图元。
      * @param oldPos 移动前的位置。
      * @param newPos 移动后的位置。
      */
     void itemMoved(QGraphicsItem *item, const QPointF &oldPos, const QPointF &newPos);
+
+    /**
+     * @brief 图元正在移动信号。
+     *
+     * 在拖动过程中每次 mouseMoveEvent 时发出，用于属性面板等实时刷新场景。
+     *
+     * @param item 正在移动的图元。
+     */
+    void itemMoving(QGraphicsItem *item);
 
     /**
      * @brief 边界约束变化信号。
@@ -299,7 +309,7 @@ protected:
      * @param sourceType 源图元碰撞类型。
      * @return 障碍物列表。
      */
-    QList<QGraphicsItem*> getObstacles(QGraphicsItem *source, CollisionShapeType sourceType);
+    QList<QGraphicsItem*> getObstacles(QGraphicsItem *source, ShapeMeta::Type sourceType);
 
     /**
      * @brief 对图元应用边界约束。

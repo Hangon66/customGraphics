@@ -1,4 +1,5 @@
 #include "CollisionHandler.h"
+#include "../view/ShapeMetadata.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsItem>
@@ -17,7 +18,7 @@ CollisionConfig::~CollisionConfig()
 {
 }
 
-void CollisionConfig::setCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2, bool enabled)
+void CollisionConfig::setCollisionEnabled(ShapeMeta::Type type1, ShapeMeta::Type type2, bool enabled)
 {
     // 确保类型对的顺序一致，(type1, type2) 和 (type2, type1) 视为相同
     int t1 = static_cast<int>(type1);
@@ -31,7 +32,7 @@ void CollisionConfig::setCollisionEnabled(CollisionShapeType type1, CollisionSha
     }
 }
 
-bool CollisionConfig::isCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2) const
+bool CollisionConfig::isCollisionEnabled(ShapeMeta::Type type1, ShapeMeta::Type type2) const
 {
     int t1 = static_cast<int>(type1);
     int t2 = static_cast<int>(type2);
@@ -44,7 +45,7 @@ void CollisionConfig::enableAllCollisions()
 {
     m_enabledPairs.clear();
     // 添加所有类型对
-    int maxType = static_cast<int>(CollisionShapeType::Unknown);
+    int maxType = static_cast<int>(ShapeMeta::Unknown);
     for (int i = 0; i <= maxType; ++i) {
         for (int j = i; j <= maxType; ++j) {
             m_enabledPairs.insert(qMakePair(i, j));
@@ -60,21 +61,21 @@ void CollisionConfig::disableAllCollisions()
 void CollisionConfig::enableRectOnlyCollision()
 {
     disableAllCollisions();
-    setCollisionEnabled(CollisionShapeType::Rect, CollisionShapeType::Rect, true);
+    setCollisionEnabled(ShapeMeta::Rect, ShapeMeta::Rect, true);
 }
 
 void CollisionConfig::enableLineOnlyCollision()
 {
     disableAllCollisions();
-    setCollisionEnabled(CollisionShapeType::Line, CollisionShapeType::Line, true);
+    setCollisionEnabled(ShapeMeta::Line, ShapeMeta::Line, true);
 }
 
 void CollisionConfig::enableRectAndLineCollision()
 {
     disableAllCollisions();
-    setCollisionEnabled(CollisionShapeType::Rect, CollisionShapeType::Rect, true);
-    setCollisionEnabled(CollisionShapeType::Line, CollisionShapeType::Line, true);
-    setCollisionEnabled(CollisionShapeType::Rect, CollisionShapeType::Line, true);
+    setCollisionEnabled(ShapeMeta::Rect, ShapeMeta::Rect, true);
+    setCollisionEnabled(ShapeMeta::Line, ShapeMeta::Line, true);
+    setCollisionEnabled(ShapeMeta::Rect, ShapeMeta::Line, true);
 }
 
 // ==================== CollisionHandler 实现 ====================
@@ -118,7 +119,7 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
 
 QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene, const QPointF &point,
                                                             QGraphicsItem *excludeItem,
-                                                            CollisionShapeType sourceType,
+                                                            ShapeMeta::Type sourceType,
                                                             const CollisionConfig &config)
 {
     if (!scene) {
@@ -168,9 +169,9 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
 
         // 如果有配置，使用配置检查
         if (config) {
-            CollisionShapeType itemType = getShapeType(item);
+            ShapeMeta::Type itemType = getShapeType(item);
             // 对于矩形重叠检测，假设源类型为 Rect
-            if (!config->isCollisionEnabled(itemType, CollisionShapeType::Rect)) {
+            if (!config->isCollisionEnabled(itemType, ShapeMeta::Rect)) {
                 continue;
             }
         }
@@ -195,7 +196,7 @@ bool CollisionHandler::isCollisionItem(QGraphicsItem *item)
     // 参与碰撞的图元需满足：
     // 1. 可选择（ItemIsSelectable）或可移动（ItemIsMovable）
     // 2. 有 "DrawShape" 或 "CutArea" 数据标记
-    QVariant data = item->data(0);
+    QVariant data = item->data(ShapeMeta::Category);
     if (data.isValid()) {
         QString dataType = data.toString();
         if (dataType == "DrawShape" || dataType == "CutArea") {
@@ -212,46 +213,46 @@ bool CollisionHandler::isCollisionItem(QGraphicsItem *item)
 }
 
 bool CollisionHandler::isCollisionItemWithConfig(QGraphicsItem *item,
-                                                   CollisionShapeType sourceType,
+                                                   ShapeMeta::Type sourceType,
                                                    const CollisionConfig &config)
 {
     if (!isCollisionItem(item)) {
         return false;
     }
 
-    CollisionShapeType itemType = getShapeType(item);
+    ShapeMeta::Type itemType = getShapeType(item);
     return config.isCollisionEnabled(sourceType, itemType);
 }
 
-CollisionShapeType CollisionHandler::getShapeType(QGraphicsItem *item)
+ShapeMeta::Type CollisionHandler::getShapeType(QGraphicsItem *item)
 {
     if (!item) {
-        return CollisionShapeType::Unknown;
+        return ShapeMeta::Unknown;
     }
 
-    // 从 data(1) 获取类型
-    QVariant typeData = item->data(1);
+    // 从 data(ShapeMeta::ShapeType) 获取类型
+    QVariant typeData = item->data(ShapeMeta::ShapeType);
     if (typeData.isValid()) {
         int type = typeData.toInt();
         switch (type) {
-        case 0: // ShapeType::Rect
-            return CollisionShapeType::Rect;
-        case 1: // ShapeType::Line
-            return CollisionShapeType::Line;
+        case ShapeMeta::Rect:
+        case ShapeMeta::Line:
+        case ShapeMeta::Pixmap:
+            return static_cast<ShapeMeta::Type>(type);
         default:
-            return CollisionShapeType::Unknown;
+            return ShapeMeta::Unknown;
         }
     }
 
     // 根据图元类型推断
     if (qgraphicsitem_cast<QGraphicsRectItem*>(item)) {
-        return CollisionShapeType::Rect;
+        return ShapeMeta::Rect;
     }
     if (qgraphicsitem_cast<QGraphicsLineItem*>(item)) {
-        return CollisionShapeType::Line;
+        return ShapeMeta::Line;
     }
 
-    return CollisionShapeType::Unknown;
+    return ShapeMeta::Unknown;
 }
 
 QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QPointF &targetPos,

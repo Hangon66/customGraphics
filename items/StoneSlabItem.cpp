@@ -1,4 +1,5 @@
 #include "StoneSlabItem.h"
+#include "../view/ShapeMetadata.h"
 
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
@@ -19,7 +20,17 @@ StoneSlabItem::~StoneSlabItem()
 void StoneSlabItem::initItem()
 {
     // 设置图元标识
-    setData(0, "StoneSlab");
+    setData(ShapeMeta::Category, "StoneSlab");
+    setData(ShapeMeta::ShapeType, ShapeMeta::Pixmap);
+    setData(ShapeMeta::Name, "石板");
+    PropMap props;
+    props["typeName"] = PropField("石板", "类型:", PropType::Text, true, false);
+    props["slabName"] = PropField("", "名称:", PropType::Text, true, true);
+    props["serialNumber"] = PropField("", "编号:", PropType::Text, true, true);
+    props["merchant"] = PropField("", "商户:", PropType::Text, true, true);
+    props["slabLength"] = PropField(0.0, "长度(mm):", PropType::Number, true, false);
+    props["slabWidth"] = PropField(0.0, "宽度(mm):", PropType::Number, true, false);
+    setData(ShapeMeta::Props, QVariant::fromValue(props));
 
     // 设置 Z 值为最低层
     setZValue(-100);

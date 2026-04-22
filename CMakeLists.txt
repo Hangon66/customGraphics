@@ -35,6 +35,9 @@ qt_add_executable(customGraphics
     view/CustomGraphicsView.cpp
     view/CustomGraphicsScene.h
     view/CustomGraphicsScene.cpp
+    view/PropertyPanel.h
+    view/PropertyPanel.cpp
+    view/ShapeMetadata.h
     handlers/ZoomHandler.h
     handlers/ZoomHandler.cpp
     handlers/PanHandler.h

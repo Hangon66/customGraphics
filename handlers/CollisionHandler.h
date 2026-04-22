@@ -1,6 +1,8 @@
 #ifndef COLLISIONHANDLER_H
 #define COLLISIONHANDLER_H
 
+#include "../view/ShapeMetadata.h"
+
 #include <QRectF>
 #include <QPointF>
 #include <QList>
@@ -9,18 +11,6 @@
 
 class QGraphicsItem;
 class QGraphicsScene;
-
-/**
- * @brief 图元形状类型枚举。
- *
- * 用于碰撞检测时区分不同类型的图元。
- */
-enum class CollisionShapeType
-{
-    Rect,   ///< 矩形
-    Line,   ///< 线条
-    Unknown ///< 未知类型
-};
 
 /**
  * @brief 碰撞配置类。
@@ -48,7 +38,7 @@ public:
      * @param type2 第二个图元类型。
      * @param enabled true 允许碰撞；false 禁止碰撞。
      */
-    void setCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2, bool enabled);
+    void setCollisionEnabled(ShapeMeta::Type type1, ShapeMeta::Type type2, bool enabled);
 
     /**
      * @brief 检查指定类型对是否允许碰撞。
@@ -57,7 +47,7 @@ public:
      * @param type2 第二个图元类型。
      * @return true 允许碰撞；false 禁止碰撞。
      */
-    bool isCollisionEnabled(CollisionShapeType type1, CollisionShapeType type2) const;
+    bool isCollisionEnabled(ShapeMeta::Type type1, ShapeMeta::Type type2) const;
 
     /**
      * @brief 启用所有碰撞。
@@ -145,7 +135,7 @@ public:
      */
     static QGraphicsItem* pointInAnyItemWithConfig(QGraphicsScene *scene, const QPointF &point,
                                                     QGraphicsItem *excludeItem,
-                                                    CollisionShapeType sourceType,
+                                                    ShapeMeta::Type sourceType,
                                                     const CollisionConfig &config);
 
     /**
@@ -203,7 +193,7 @@ public:
      * @return true 参与碰撞；false 不参与。
      */
     static bool isCollisionItemWithConfig(QGraphicsItem *item,
-                                           CollisionShapeType sourceType,
+                                           ShapeMeta::Type sourceType,
                                            const CollisionConfig &config);
 
     /**
@@ -212,7 +202,7 @@ public:
      * @param item 图元对象。
      * @return 图元的碰撞类型。
      */
-    static CollisionShapeType getShapeType(QGraphicsItem *item);
+    static ShapeMeta::Type getShapeType(QGraphicsItem *item);
 
 private:
     /**
