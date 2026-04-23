@@ -87,6 +87,10 @@ void PropertyPanel::initUI()
     scrollArea->setFrameShape(QFrame::NoFrame);
 
     m_contentWidget = new QWidget(scrollArea);
+    m_contentWidget->setStyleSheet(
+        "QWidget { background-color: #1e1e1e; }"
+        "QLineEdit { background-color: #000000; }"
+        "QDoubleSpinBox { background-color: #000000; }");
     QVBoxLayout *contentLayout = new QVBoxLayout(m_contentWidget);
     contentLayout->setContentsMargins(8, 8, 8, 8);
     contentLayout->setSpacing(6);
