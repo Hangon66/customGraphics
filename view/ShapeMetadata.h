@@ -15,7 +15,8 @@
 enum class PropType
 {
     Text,       ///< 文本类型，使用 QLineEdit
-    Number,     ///< 数值类型，使用 QDoubleSpinBox
+    Number,     ///< 浮点数值类型，使用 QDoubleSpinBox
+    Int,        ///< 整数数值类型，使用 QSpinBox
     Bool        ///< 布尔类型，使用 QCheckBox
 };
 
@@ -77,6 +78,13 @@ public:
      * @return 数值形式的属性值，无法转换时返回 0.0。
      */
     double toDouble() const { return m_value.toDouble(); }
+
+    /**
+     * @brief 获取属性值作为整数。
+     *
+     * @return 整数形式的属性值，无法转换时返回 0。
+     */
+    int toInt() const { return m_value.toInt(); }
 
     /**
      * @brief 获取属性值作为布尔值。

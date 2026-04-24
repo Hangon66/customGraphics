@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -87,10 +88,9 @@ void PropertyPanel::initUI()
     scrollArea->setFrameShape(QFrame::NoFrame);
 
     m_contentWidget = new QWidget(scrollArea);
+    m_contentWidget->setObjectName(QStringLiteral("propContentWidget"));
     m_contentWidget->setStyleSheet(
-        "QWidget { background-color: #1e1e1e; }"
-        "QLineEdit { background-color: #000000; }"
-        "QDoubleSpinBox { background-color: #000000; }");
+        "#propContentWidget { background-color: transparent; }");
     QVBoxLayout *contentLayout = new QVBoxLayout(m_contentWidget);
     contentLayout->setContentsMargins(8, 8, 8, 8);
     contentLayout->setSpacing(6);
@@ -207,7 +207,25 @@ void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
         rowLayout->addWidget(label);
 
         // 根据 PropType 选择控件
-        if (field.propType() == PropType::Number) {
+        if (field.propType() == PropType::Int) {
+            QSpinBox *spin = new QSpinBox(m_contentWidget);
+            spin->setRange(-2147483647, 2147483647);
+            spin->setSingleStep(1);
+            spin->setValue(field.toInt());
+            spin->setEnabled(field.isEditable());
+            connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, key, spin]() {
+                if (m_updating || !m_currentItem) return;
+                PropMap props = m_currentItem->data(ShapeMeta::Props).value<PropMap>();
+                if (props.contains(key)) {
+                    props[key].setValue(spin->value());
+                    m_currentItem->setData(ShapeMeta::Props, QVariant::fromValue(props));
+                }
+                emit propertyChanged(m_currentItem, key, spin->value());
+            });
+            rowLayout->addWidget(spin);
+            m_dynamicWidgets.append(spin);
+            m_propWidgets[key] = spin;
+        } else if (field.propType() == PropType::Number) {
             QDoubleSpinBox *spin = new QDoubleSpinBox(m_contentWidget);
             spin->setRange(-99999, 99999);
             spin->setDecimals(1);
@@ -403,7 +421,12 @@ void PropertyPanel::updatePropertyValues(const PropMap &props)
             continue;
         }
 
-        if (field.propType() == PropType::Number) {
+        if (field.propType() == PropType::Int) {
+            QSpinBox *spin = qobject_cast<QSpinBox*>(widget);
+            if (spin && spin->value() != field.toInt()) {
+                spin->setValue(field.toInt());
+            }
+        } else if (field.propType() == PropType::Number) {
             QDoubleSpinBox *spin = qobject_cast<QDoubleSpinBox*>(widget);
             if (spin && !qFuzzyCompare(spin->value(), field.toDouble())) {
                 spin->setValue(field.toDouble());

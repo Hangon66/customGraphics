@@ -7,6 +7,8 @@
 #include <QPolygonF>
 #include <QPen>
 #include <QBrush>
+#include <QVector>
+#include <QHash>
 
 class QGraphicsScene;
 class QGraphicsItem;
@@ -72,6 +74,38 @@ public:
     const BoardData& boardData() const { return m_boardData; }
 
     /**
+     * @brief 处理鼠标按下事件，检测成品整体拖动。
+     *
+     * 当点击成品矩形或标签时，进入整体拖动模式，
+     * 记录所有成品和标签的初始位置。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标按下事件对象。
+     * @return true 表示事件已被消费；false 表示未处理。
+     */
+    bool handleMousePress(QGraphicsView *view, QMouseEvent *event) override;
+
+    /**
+     * @brief 处理鼠标移动事件，执行成品整体拖动。
+     *
+     * 在整体拖动模式下，计算偏移量并同步移动所有成品和标签。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标移动事件对象。
+     * @return true 表示事件已被消费；false 表示未处理。
+     */
+    bool handleMouseMove(QGraphicsView *view, QMouseEvent *event) override;
+
+    /**
+     * @brief 处理鼠标释放事件，结束成品整体拖动。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标释放事件对象。
+     * @return true 表示事件已被消费；false 表示未处理。
+     */
+    bool handleMouseRelease(QGraphicsView *view, QMouseEvent *event) override;
+
+    /**
      * @brief 清除所有大板数据。
      *
      * 移除场景中的背景图片和所有成品图元。
@@ -84,6 +118,13 @@ public:
      * @param scene QGraphicsScene实例。
      */
     void setScene(QGraphicsScene *scene);
+
+    /**
+     * @brief 设置关联的视图，用于加载后自动适配显示。
+     *
+     * @param view QGraphicsView实例。
+     */
+    void setView(QGraphicsView *view);
 
     /**
      * @brief 获取关联的场景。
@@ -147,6 +188,14 @@ public:
      * @return true 显示；false 隐藏。
      */
     bool showLabels() const { return m_showLabels; }
+
+    /**
+     * @brief 设置视图适配时的边距（用于避开标尺等区域）。
+     *
+     * @param leftMargin 左侧边距（像素）。
+     * @param bottomMargin 底侧边距（像素）。
+     */
+    void setFitMargins(int leftMargin, int bottomMargin);
 
     /**
      * @brief 适应视图到背景图片。
@@ -230,6 +279,11 @@ private:
     QGraphicsScene *m_scene;
 
     /**
+     * @brief 关联的QGraphicsView实例，用于加载后自动适配显示。
+     */
+    QGraphicsView *m_view;
+
+    /**
      * @brief 撤销栈。
      */
     QUndoStack *m_undoStack;
@@ -283,6 +337,38 @@ private:
      * @brief 板子尺寸（毫米）。
      */
     QSizeF m_boardSizeMM;
+
+    /**
+     * @brief 视图适配左侧边距（像素），用于避开左侧标尺。
+     */
+    int m_fitLeftMargin;
+
+    /**
+     * @brief 视图适配底侧边距（像素），用于避开底部标尺。
+     */
+    int m_fitBottomMargin;
+
+    /**
+     * @brief 是否正在进行整体拖动。
+     *
+     * true 表示正在拖动所有成品；false 表示空闲。
+     */
+    bool m_isGroupDragging;
+
+    /**
+     * @brief 整体拖动起始场景坐标。
+     */
+    QPointF m_dragStartScenePos;
+
+    /**
+     * @brief 整体拖动开始时各成品图元的初始位置。
+     */
+    QVector<QPointF> m_artifactStartPositions;
+
+    /**
+     * @brief 整体拖动开始时各标签图元的初始位置。
+     */
+    QVector<QPointF> m_labelStartPositions;
 };
 
 #endif // BOARDLOADHANDLER_H

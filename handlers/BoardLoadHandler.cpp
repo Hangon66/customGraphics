@@ -1,6 +1,7 @@
 #include "BoardLoadHandler.h"
 #include "../../boarddataloader.h"
 #include "../view/CustomGraphicsScene.h"
+#include "../view/ShapeMetadata.h"
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QGraphicsPixmapItem>
@@ -10,13 +11,18 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QDir>
+#include <QMouseEvent>
 
 BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
     : AbstractInteractionHandler(priority, parent)
     , m_scene(nullptr)
+    , m_view(nullptr)
     , m_undoStack(nullptr)
     , m_backgroundItem(nullptr)
     , m_showLabels(true)
+    , m_fitLeftMargin(0)
+    , m_fitBottomMargin(0)
+    , m_isGroupDragging(false)
 {
     // 默认成品样式
     m_artifactPen = QPen(Qt::red, 2);
@@ -105,9 +111,20 @@ void BoardLoadHandler::setScene(QGraphicsScene *scene)
     m_scene = scene;
 }
 
+void BoardLoadHandler::setView(QGraphicsView *view)
+{
+    m_view = view;
+}
+
 void BoardLoadHandler::setUndoStack(QUndoStack *undoStack)
 {
     m_undoStack = undoStack;
+}
+
+void BoardLoadHandler::setFitMargins(int leftMargin, int bottomMargin)
+{
+    m_fitLeftMargin = qMax(0, leftMargin);
+    m_fitBottomMargin = qMax(0, bottomMargin);
 }
 
 void BoardLoadHandler::setArtifactPen(const QPen &pen)
@@ -154,12 +171,39 @@ void BoardLoadHandler::fitViewToBoard(QGraphicsView *view)
         return;
     }
 
-    QRectF sceneRect = m_scene->sceneRect();
-    if (sceneRect.isEmpty()) {
+    // 石板实际区域（原点左上角）
+    QRectF boardRect(0, 0, m_backgroundPixmap.width(), m_backgroundPixmap.height());
+    if (boardRect.isEmpty()) {
         return;
     }
 
-    view->fitInView(sceneRect, Qt::KeepAspectRatio);
+    // 1. 自适应缩放：石板区域填满视口
+    view->fitInView(boardRect, Qt::KeepAspectRatio);
+
+    // 2. 左下角对齐到标尺内侧（扣除边距）
+    // 当前石板左下角在视口中的位置
+    QPointF currentVpBottomLeft = view->mapFromScene(boardRect.bottomLeft());
+
+    // 目标视口位置：左侧边距、底部边距之上
+    QPointF targetVpBottomLeft(
+        m_fitLeftMargin,
+        view->viewport()->height() - m_fitBottomMargin);
+
+    // 计算需要的视口偏移
+    QPointF deltaVp = targetVpBottomLeft - currentVpBottomLeft;
+
+    // 将视口偏移转换为场景偏移
+    QTransform transform = view->transform();
+    QPointF sceneDelta(deltaVp.x() / transform.m11(),
+                       deltaVp.y() / transform.m22());
+
+    // 当前视口中心对应的场景坐标
+    QPointF currentCenter = view->mapToScene(
+        view->viewport()->width() / 2,
+        view->viewport()->height() / 2);
+
+    // 移动视口中心，使石板左下角对齐到目标位置
+    view->centerOn(currentCenter - sceneDelta);
 }
 
 QSizeF BoardLoadHandler::boardSize() const
@@ -270,9 +314,23 @@ void BoardLoadHandler::drawArtifacts()
         rectItem->setPen(m_artifactPen);
         rectItem->setBrush(m_artifactBrush);
         rectItem->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        rectItem->setData(0, artifact.id);
-        rectItem->setData(1, artifact.artifactCode);
-        rectItem->setData(2, QStringLiteral("artifact"));
+
+        // 设置属性表，供 PropertyPanel 显示
+        PropMap props;
+        props["artifactCode"] = PropField(artifact.artifactCode, QStringLiteral("片名:"), PropType::Text, true, false);
+        props["drawingMetaCode"] = PropField(artifact.drawingMetaCode, QStringLiteral("区域名:"), PropType::Text, true, false);
+        int widthMM = qRound(artifact.width / 10.0);
+        int heightMM = qRound(artifact.height / 10.0);
+        props["width"] = PropField(widthMM, QStringLiteral("宽度(mm):"), PropType::Number, true, false);
+        props["height"] = PropField(heightMM, QStringLiteral("高度(mm):"), PropType::Number, true, false);
+        props["square"] = PropField(artifact.square, QStringLiteral("面积(m²):"), PropType::Number, true, false);
+        props["rack"] = PropField(artifact.rack.isEmpty() ? QStringLiteral("手动") : artifact.rack,
+                                   QStringLiteral("架号:"), PropType::Text, true, false);
+        props["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, true, false);
+        rectItem->setData(ShapeMeta::Category, QStringLiteral("Artifact"));
+        rectItem->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
+        rectItem->setData(ShapeMeta::Name, artifact.artifactCode);
+        rectItem->setData(ShapeMeta::Props, QVariant::fromValue(props));
 
         m_scene->addItem(rectItem);
         m_artifactItems.append(rectItem);
@@ -345,7 +403,6 @@ void BoardLoadHandler::drawArtifacts()
                         "<div style='color:%1; font-size:%2px; font-weight:%3;'>%4</div>")
                         .arg(textColor).arg(qRound(fontSize))
                         .arg(i == 0 ? "bold" : "normal").arg(text));
-                    textItem->setData(0, artifact.id);
                     textItem->setVisible(m_showLabels);
                     labels.append(textItem);
 
@@ -378,6 +435,10 @@ void BoardLoadHandler::drawArtifacts()
                 textItem->setData(1, i == 0 ? QStringLiteral("label") :
                                          i == 1 ? QStringLiteral("sizeLabel") :
                                                   QStringLiteral("rackLabel"));
+                // 标签关联的成品ID存入PropMap
+                PropMap labelProps;
+                labelProps["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, true, false);
+                textItem->setData(ShapeMeta::Props, QVariant::fromValue(labelProps));
                 m_scene->addItem(textItem);
                 m_labelItems.append(textItem);
             }
@@ -452,4 +513,142 @@ QPolygonF BoardLoadHandler::mapBoardPolygonToScene(const QVector<vPoint2D> &vert
         polygon << mapBoardToScene(QPointF(pt.x, pt.y));
     }
     return polygon;
+}
+
+bool BoardLoadHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
+{
+    if (!isEnabled() || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
+        return false;
+    }
+
+    // 获取鼠标位置下的图元
+    QGraphicsItem *item = view->itemAt(event->pos());
+    if (!item) {
+        return false;
+    }
+
+    // 判断是否为成品矩形或标签
+    bool isArtifact = (item->data(ShapeMeta::Category).toString() == QStringLiteral("Artifact"));
+    bool isLabel = (item->data(1).toString() == QStringLiteral("label") ||
+                   item->data(1).toString() == QStringLiteral("sizeLabel") ||
+                   item->data(1).toString() == QStringLiteral("rackLabel"));
+
+    if (!isArtifact && !isLabel) {
+        return false;
+    }
+
+    // 手动选中对应的成品矩形图元，触发 PropertyPanel 更新
+    if (m_scene) {
+        qint64 artifactId = item->data(ShapeMeta::Props).value<PropMap>().value("artifactId").toInt();
+        m_scene->clearSelection();
+        if (isArtifact) {
+            item->setSelected(true);
+        } else {
+            // 点击标签时，选中对应的成品矩形
+            for (QGraphicsItem *artifactItem : m_artifactItems) {
+                qint64 id = artifactItem->data(ShapeMeta::Props).value<PropMap>().value("artifactId").toInt();
+                if (id == artifactId) {
+                    artifactItem->setSelected(true);
+                    break;
+                }
+            }
+        }
+    }
+
+    // 进入整体拖动模式
+    m_isGroupDragging = true;
+    m_dragStartScenePos = view->mapToScene(event->pos());
+
+    // 记录所有成品和标签的初始位置
+    m_artifactStartPositions.clear();
+    for (QGraphicsItem *artifactItem : m_artifactItems) {
+        m_artifactStartPositions.append(artifactItem->pos());
+    }
+
+    m_labelStartPositions.clear();
+    for (QGraphicsItem *labelItem : m_labelItems) {
+        m_labelStartPositions.append(labelItem->pos());
+    }
+
+    return true;
+}
+
+bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
+{
+    if (!m_isGroupDragging) {
+        return false;
+    }
+
+    // 计算场景坐标偏移量
+    QPointF currentScenePos = view->mapToScene(event->pos());
+    QPointF delta = currentScenePos - m_dragStartScenePos;
+
+    // 应用边界约束：确保所有成品图元不超出石板区域
+    CustomGraphicsScene *customScene = dynamic_cast<CustomGraphicsScene*>(m_scene);
+    if (customScene && customScene->hasBoundaryConstraint()) {
+        QRectF boundary = customScene->boundaryConstraint();
+
+        // 计算所有成品图元移动后的总包围盒
+        QRectF combinedRect;
+        for (int i = 0; i < m_artifactItems.size() && i < m_artifactStartPositions.size(); ++i) {
+            QGraphicsRectItem *rectItem = dynamic_cast<QGraphicsRectItem*>(m_artifactItems[i]);
+            if (rectItem) {
+                QPointF newPos = m_artifactStartPositions[i] + delta;
+                QRectF itemRect = rectItem->rect().translated(newPos);
+                combinedRect = combinedRect.isNull() ? itemRect : combinedRect.united(itemRect);
+            }
+        }
+
+        // 限制偏移量，使包围盒不超出边界
+        if (!combinedRect.isNull()) {
+            if (combinedRect.left() < boundary.left()) {
+                delta.setX(delta.x() + (boundary.left() - combinedRect.left()));
+            }
+            if (combinedRect.right() > boundary.right()) {
+                delta.setX(delta.x() - (combinedRect.right() - boundary.right()));
+            }
+            if (combinedRect.top() < boundary.top()) {
+                delta.setY(delta.y() + (boundary.top() - combinedRect.top()));
+            }
+            if (combinedRect.bottom() > boundary.bottom()) {
+                delta.setY(delta.y() - (combinedRect.bottom() - boundary.bottom()));
+            }
+        }
+    }
+
+    // 同步移动所有成品图元
+    for (int i = 0; i < m_artifactItems.size() && i < m_artifactStartPositions.size(); ++i) {
+        m_artifactItems[i]->setPos(m_artifactStartPositions[i] + delta);
+    }
+
+    // 同步移动所有标签图元
+    for (int i = 0; i < m_labelItems.size() && i < m_labelStartPositions.size(); ++i) {
+        m_labelItems[i]->setPos(m_labelStartPositions[i] + delta);
+    }
+
+    // 通知属性面板实时刷新选中成品的坐标
+    if (customScene) {
+        QList<QGraphicsItem*> selected = m_scene->selectedItems();
+        if (!selected.isEmpty()) {
+            emit customScene->itemMoving(selected.first());
+        }
+    }
+
+    return true;
+}
+
+bool BoardLoadHandler::handleMouseRelease(QGraphicsView *view, QMouseEvent *event)
+{
+    if (!m_isGroupDragging) {
+        return false;
+    }
+
+    // 结束整体拖动
+    m_isGroupDragging = false;
+    m_artifactStartPositions.clear();
+    m_labelStartPositions.clear();
+
+    Q_UNUSED(view)
+    Q_UNUSED(event)
+    return true;
 }
