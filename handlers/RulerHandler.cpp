@@ -134,24 +134,31 @@ void RulerHandler::paint(QPainter *painter, QGraphicsView *view)
 
     QRect viewportRect = view->viewport()->rect();
 
+    // 绘制底部水平标尺
+    if (m_position == RulerPosition::Bottom || m_position == RulerPosition::Both) {
+        QRect bottomRect(0, viewportRect.height() - m_rulerWidth, viewportRect.width(), m_rulerWidth);
+        paintHorizontalRuler(painter, view, bottomRect);
+    }
+
     // 绘制顶部水平标尺
-    if (m_position == RulerPosition::Top || m_position == RulerPosition::Both) {
+    if (m_position == RulerPosition::Top) {
         QRect topRect(0, 0, viewportRect.width(), m_rulerWidth);
         paintHorizontalRuler(painter, view, topRect);
     }
 
     // 绘制左侧垂直标尺
     if (m_position == RulerPosition::Left || m_position == RulerPosition::Both) {
-        int leftOffset = (m_position == RulerPosition::Both) ? m_rulerWidth : 0;
-        QRect leftRect(0, leftOffset, m_rulerWidth, viewportRect.height() - leftOffset);
+        int bottomOffset = (m_position == RulerPosition::Both) ? m_rulerWidth : 0;
+        QRect leftRect(0, 0, m_rulerWidth, viewportRect.height() - bottomOffset);
         paintVerticalRuler(painter, view, leftRect);
     }
 
-    // 绘制左上角原点区域
+    // 绘制左下角原点区域
     if (m_position == RulerPosition::Both) {
-        painter->fillRect(0, 0, m_rulerWidth, m_rulerWidth, m_backgroundColor);
+        int cornerY = viewportRect.height() - m_rulerWidth;
+        painter->fillRect(0, cornerY, m_rulerWidth, m_rulerWidth, m_backgroundColor);
         painter->setPen(m_tickColor);
-        painter->drawText(QRect(0, 0, m_rulerWidth, m_rulerWidth),
+        painter->drawText(QRect(0, cornerY, m_rulerWidth, m_rulerWidth),
                           Qt::AlignCenter, m_unitName);
     }
 
@@ -187,8 +194,14 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
 
     painter->setPen(m_tickColor);
 
-    // 绘制底部边线
-    painter->drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom());
+    bool isAtBottom = (m_position == RulerPosition::Bottom || m_position == RulerPosition::Both);
+
+    // 绘制分隔线：底部标尺在顶部画分隔线，顶部标尺在底部画分隔线
+    if (isAtBottom) {
+        painter->drawLine(rect.left(), rect.top(), rect.right(), rect.top());
+    } else {
+        painter->drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom());
+    }
 
     // 绘制刻度
     double step = tickInterval / 5.0;
@@ -215,12 +228,20 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
 
         int tickHeight = isMajor ? rect.height() - 4 : rect.height() / 2;
 
-        painter->drawLine(viewX, rect.bottom(), viewX, rect.bottom() - tickHeight);
-
-        // 主刻度显示标签
-        if (isMajor) {
-            QString label = formatTickLabel(unit);
-            painter->drawText(viewX + 2, rect.bottom() - tickHeight + 10, label);
+        if (isAtBottom) {
+            // 底部标尺：刻度从顶边向下延伸
+            painter->drawLine(viewX, rect.top(), viewX, rect.top() + tickHeight);
+            if (isMajor) {
+                QString label = formatTickLabel(unit);
+                painter->drawText(viewX + 2, rect.top() + tickHeight - 2, label);
+            }
+        } else {
+            // 顶部标尺：刻度从底边向上延伸
+            painter->drawLine(viewX, rect.bottom(), viewX, rect.bottom() - tickHeight);
+            if (isMajor) {
+                QString label = formatTickLabel(unit);
+                painter->drawText(viewX + 2, rect.bottom() - tickHeight + 10, label);
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ class QGraphicsView;
  *
  * 在视图边缘绘制刻度标尺，显示当前场景坐标和缩放比例。
  * 支持自定义精度（单位像素值）和单位名称。
+ * 默认标尺位置为左下角（底部水平标尺 + 左侧垂直标尺）。
  * 主要用于石材切割等需要高精度测量的场景。
  */
 class RulerHandler : public AbstractInteractionHandler
@@ -26,8 +27,9 @@ public:
     enum class RulerPosition
     {
         Top,    ///< 顶部水平标尺
+        Bottom, ///< 底部水平标尺
         Left,   ///< 左侧垂直标尺
-        Both    ///< 顶部和左侧都显示（默认）
+        Both    ///< 底部和左侧都显示（默认）
     };
 
     /**
