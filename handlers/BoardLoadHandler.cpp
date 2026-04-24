@@ -327,6 +327,9 @@ void BoardLoadHandler::drawArtifacts()
         props["rack"] = PropField(artifact.rack.isEmpty() ? QStringLiteral("手动") : artifact.rack,
                                    QStringLiteral("架号:"), PropType::Text, true, false);
         props["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, true, false);
+        // 预置几何属性为可见不可编辑，refreshGeometryProps 会自动更新值
+        props["x"] = PropField(0.0, QStringLiteral("X:"), PropType::Number, true, false);
+        props["y"] = PropField(0.0, QStringLiteral("Y:"), PropType::Number, true, false);
         rectItem->setData(ShapeMeta::Category, QStringLiteral("Artifact"));
         rectItem->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
         rectItem->setData(ShapeMeta::Name, artifact.artifactCode);
