@@ -62,6 +62,11 @@ void BoardLoadHandler::setBoardData(const BoardData &data)
     // 先清除旧数据
     clearBoard();
 
+    // 加载新板材后，旧命令中的图元指针已失效，清空撤销栈防止崩溃
+    if (m_undoStack) {
+        m_undoStack->clear();
+    }
+
     m_boardData = data;
     m_boardSizeMM = QSizeF(data.length, data.wide);
 
