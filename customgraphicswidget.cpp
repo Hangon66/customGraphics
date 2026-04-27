@@ -155,6 +155,12 @@ void CustomGraphicsWidget::initStoneCuttingScene()
     m_guideLineHandler = new GuideLineHandler(80, this);
     if (m_rulerHandler) {
         m_guideLineHandler->setRulerWidth(m_rulerHandler->rulerWidth());
+        // 根据标尺位置设置辅助线拖拽区域
+        if (m_rulerHandler->rulerPosition() == RulerHandler::RulerPosition::Top) {
+            m_guideLineHandler->setRulerPosition(GuideLineHandler::RulerPosition::Top);
+        } else {
+            m_guideLineHandler->setRulerPosition(GuideLineHandler::RulerPosition::Bottom);
+        }
     }
     m_view->addHandler(m_guideLineHandler);
 
@@ -320,6 +326,7 @@ void CustomGraphicsWidget::addTestItems()
     cutArea1->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea1->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea1->setFlag(QGraphicsItem::ItemIsMovable);
+    cutArea1->setData(ShapeMeta::Id, ShapeMeta::nextId());
     cutArea1->setData(ShapeMeta::Category, "CutArea");
     cutArea1->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
     cutArea1->setData(ShapeMeta::Name, "切割区域_1");
@@ -336,6 +343,7 @@ void CustomGraphicsWidget::addTestItems()
     cutArea2->setBrush(QBrush(QColor(100, 149, 237, 80)));
     cutArea2->setFlag(QGraphicsItem::ItemIsSelectable);
     cutArea2->setFlag(QGraphicsItem::ItemIsMovable);
+    cutArea2->setData(ShapeMeta::Id, ShapeMeta::nextId());
     cutArea2->setData(ShapeMeta::Category, "CutArea");
     cutArea2->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
     cutArea2->setData(ShapeMeta::Name, "切割区域_2");

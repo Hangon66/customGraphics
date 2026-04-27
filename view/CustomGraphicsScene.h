@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QHash>
 #include <QPixmap>
+#include "ShapeMetadata.h"
 #include "../handlers/CollisionHandler.h"
 
 class QGraphicsItem;
@@ -88,6 +89,80 @@ public:
      * @param color 背景颜色。
      */
     void setBackgroundColor(const QColor &color);
+
+    /**
+     * @brief 检查图元名称在场景中是否唯一。
+     *
+     * 基于 O(1) 哈希查找，判断指定名称是否已被其他图元占用。
+     *
+     * @param name 待检查的名称。
+     * @param exclude 需要排除的图元（通常是正在重命名的图元自身），默认 nullptr。
+     * @return true 表示名称唯一，可使用；false 表示名称已被其他图元占用。
+     */
+    bool isNameUnique(const QString &name, QGraphicsItem *exclude = nullptr) const;
+
+    /**
+     * @brief 根据名称查找图元。
+     *
+     * 基于 O(1) 哈希查找，返回场景中具有指定名称的图元。
+     *
+     * @param name 图元名称。
+     * @return 对应的图元指针；未找到时返回 nullptr。
+     */
+    QGraphicsItem* findItemByName(const QString &name) const;
+
+    /**
+     * @brief 根据ID查找图元。
+     *
+     * 基于 O(1) 哈希查找，返回场景中具有指定 ID 的图元。
+     *
+     * @param id 图元ID。
+     * @return 对应的图元指针；未找到时返回 nullptr。
+     */
+    QGraphicsItem* findItemById(int id) const;
+
+    /**
+     * @brief 更新图元名称索引。
+     *
+     * 当图元已存在于场景中且通过 setData 修改了名称后，
+     * 必须调用此方法以同步维护内部名称哈希索引，否则后续查找会失效。
+     *
+     * @param item 被重命名的图元。
+     * @param oldName 修改前的名称。
+     * @param newName 修改后的名称。
+     */
+    void updateItemName(QGraphicsItem *item, const QString &oldName, const QString &newName);
+
+    /**
+     * @brief 清空名称和ID索引表。
+     *
+     * 在场景清空（clear）后调用，确保哈希索引与实际图元状态一致。
+     * 正常情况下 addItem/removeItem 重写会自动维护索引，
+     * 但 QGraphicsScene::clear() 不是虚函数，需手动补充清理。
+     */
+    void clearIndexes();
+
+    // ========== 扩展基类方法（同名隐藏，维护索引） ==========
+
+    /**
+     * @brief 扩展 addItem，在添加图元到场景时同步维护名称和ID索引。
+     *
+     * 隐藏基类同名方法（addItem/removeItem 非虚函数），
+     * 通过 CustomGraphicsScene* 指针调用时自动走此版本维护索引。
+     *
+     * @param item 要添加的图元。
+     */
+    void addItem(QGraphicsItem *item);
+
+    /**
+     * @brief 扩展 removeItem，在移除图元时同步清理名称和ID索引。
+     *
+     * 隐藏基类同名方法（addItem/removeItem 非虚函数），
+     * 通过 CustomGraphicsScene* 指针调用时自动走此版本清理索引。
+     *
+     * @param item 要移除的图元。
+     */
+    void removeItem(QGraphicsItem *item);
 
     /**
      * @brief 设置碰撞配置。
@@ -373,6 +448,16 @@ private:
      * key 为图元指针，value 为位置。
      */
     QHash<QGraphicsItem*, QPointF> m_itemOldPositions;
+
+    /**
+     * @brief 名称到图元的索引表，用于 O(1) 名称查找和唯一性校验。
+     */
+    QHash<QString, QGraphicsItem*> m_nameIndex;
+
+    /**
+     * @brief ID到图元的索引表，用于 O(1) ID查找。
+     */
+    QHash<int, QGraphicsItem*> m_idIndex;
 
     /**
      * @brief 碰撞配置对象。

@@ -10,7 +10,7 @@
 #include <QFont>
 #include <QPainterPath>
 
-class QGraphicsScene;
+class CustomGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
 class QGraphicsLineItem;
@@ -475,14 +475,14 @@ public:
      *
      * @param scene QGraphicsScene 实例。
      */
-    void setScene(QGraphicsScene *scene);
+    void setScene(CustomGraphicsScene *scene);
 
     /**
      * @brief 获取关联的场景。
      *
      * @return 关联的 QGraphicsScene 实例。
      */
-    QGraphicsScene *scene() const;
+    CustomGraphicsScene *scene() const;
 
     /**
      * @brief 设置撤销栈，用于支持撤销/重做。
@@ -650,7 +650,7 @@ private:
     /**
      * @brief 关联的场景。
      */
-    QGraphicsScene *m_scene;
+    CustomGraphicsScene *m_scene;
 
     /**
      * @brief 绘制模式。

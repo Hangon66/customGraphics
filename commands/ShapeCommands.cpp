@@ -2,7 +2,7 @@
 
 // ==================== CreateShapeCommand 实现 ====================
 
-CreateShapeCommand::CreateShapeCommand(QGraphicsScene *scene, QGraphicsItem *item,
+CreateShapeCommand::CreateShapeCommand(CustomGraphicsScene *scene, QGraphicsItem *item,
                                        QUndoCommand *parent)
     : QUndoCommand(parent)
     , m_scene(scene)
@@ -38,7 +38,7 @@ void CreateShapeCommand::redo()
 
 // ==================== DeleteShapeCommand 实现 ====================
 
-DeleteShapeCommand::DeleteShapeCommand(QGraphicsScene *scene, const QList<QGraphicsItem*> &items,
+DeleteShapeCommand::DeleteShapeCommand(CustomGraphicsScene *scene, const QList<QGraphicsItem*> &items,
                                        QUndoCommand *parent)
     : QUndoCommand(parent)
     , m_scene(scene)

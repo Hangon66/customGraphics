@@ -10,7 +10,7 @@
 #include <QVector>
 #include <QHash>
 
-class QGraphicsScene;
+class CustomGraphicsScene;
 class QGraphicsItem;
 class QGraphicsRectItem;
 class QGraphicsTextItem;
@@ -117,7 +117,7 @@ public:
      *
      * @param scene QGraphicsScene实例。
      */
-    void setScene(QGraphicsScene *scene);
+    void setScene(CustomGraphicsScene *scene);
 
     /**
      * @brief 设置关联的视图，用于加载后自动适配显示。
@@ -131,7 +131,7 @@ public:
      *
      * @return 关联的QGraphicsScene实例；未设置则返回nullptr。
      */
-    QGraphicsScene *scene() const { return m_scene; }
+    CustomGraphicsScene *scene() const { return m_scene; }
 
     /**
      * @brief 设置撤销栈。
@@ -276,7 +276,7 @@ private:
     /**
      * @brief 关联的QGraphicsScene实例。
      */
-    QGraphicsScene *m_scene;
+    CustomGraphicsScene *m_scene;
 
     /**
      * @brief 关联的QGraphicsView实例，用于加载后自动适配显示。

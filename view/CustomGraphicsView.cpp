@@ -1,4 +1,5 @@
 #include "CustomGraphicsView.h"
+#include "CustomGraphicsScene.h"
 #include "../handlers/IInteractionHandler.h"
 #include "../handlers/ZoomHandler.h"
 #include "../handlers/PanHandler.h"
@@ -100,7 +101,7 @@ int CustomGraphicsView::deleteSelectedItems()
 
     if (count > 0) {
         // 使用删除命令，支持撤销
-        DeleteShapeCommand *cmd = new DeleteShapeCommand(scene(), selectedItems);
+        DeleteShapeCommand *cmd = new DeleteShapeCommand(qobject_cast<CustomGraphicsScene*>(scene()), selectedItems);
         m_undoStack->push(cmd);
     }
 
@@ -313,18 +314,27 @@ void CustomGraphicsView::paintEvent(QPaintEvent *event)
     // 先调用基类的绘制事件处理场景内容
     QGraphicsView::paintEvent(event);
 
-    // 遍历 Handler，调用支持绘制的 Handler
+    // 按绘制层级顺序绘制：标尺先绘制（底层），辅助线后绘制（覆盖在标尺上）
+    // 注意：事件处理按 priority 降序（高优先级先处理），但绘制需标尺在底层
+    ensureHandlersSorted();
+
+    // 第一遍：绘制标尺（底层）
     for (IInteractionHandler *handler : m_handlers) {
         if (!handler->isEnabled()) {
             continue;
         }
-        // 检查是否是 RulerHandler 并调用其 paint 方法
         if (auto *rulerHandler = dynamic_cast<RulerHandler*>(handler)) {
             QPainter painter(viewport());
             painter.setRenderHint(QPainter::Antialiasing, false);
             rulerHandler->paint(&painter, this);
         }
-        // 检查是否是 GuideLineHandler 并调用其 paint 方法
+    }
+
+    // 第二遍：绘制辅助线（覆盖在标尺上，三角形标记需可见）
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
         if (auto *guideHandler = dynamic_cast<GuideLineHandler*>(handler)) {
             QPainter painter(viewport());
             painter.setRenderHint(QPainter::Antialiasing, false);

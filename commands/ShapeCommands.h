@@ -2,7 +2,7 @@
 #define SHAPECOMMANDS_H
 
 #include <QUndoCommand>
-#include <QGraphicsScene>
+#include "../view/CustomGraphicsScene.h"
 #include <QGraphicsItem>
 #include <QList>
 
@@ -22,7 +22,7 @@ public:
      * @param item 要创建的图元（所有权转移给命令）。
      * @param parent 父命令对象。
      */
-    CreateShapeCommand(QGraphicsScene *scene, QGraphicsItem *item,
+    CreateShapeCommand(CustomGraphicsScene *scene, QGraphicsItem *item,
                        QUndoCommand *parent = nullptr);
 
     /**
@@ -46,7 +46,7 @@ private:
     /**
      * @brief 目标场景。
      */
-    QGraphicsScene *m_scene;
+    CustomGraphicsScene *m_scene;
 
     /**
      * @brief 被创建的图元。
@@ -75,7 +75,7 @@ public:
      * @param items 要删除的图元列表（所有权转移给命令）。
      * @param parent 父命令对象。
      */
-    DeleteShapeCommand(QGraphicsScene *scene, const QList<QGraphicsItem*> &items,
+    DeleteShapeCommand(CustomGraphicsScene *scene, const QList<QGraphicsItem*> &items,
                        QUndoCommand *parent = nullptr);
 
     /**
@@ -99,7 +99,7 @@ private:
     /**
      * @brief 目标场景。
      */
-    QGraphicsScene *m_scene;
+    CustomGraphicsScene *m_scene;
 
     /**
      * @brief 被删除的图元列表。

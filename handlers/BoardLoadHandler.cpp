@@ -94,15 +94,15 @@ void BoardLoadHandler::clearBoard()
     m_boardSizeMM = QSizeF();
 
     // 清除场景的边界约束和背景
-    CustomGraphicsScene *customScene = dynamic_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene) {
-        customScene->clearBackgroundPixmap();
+    if (m_scene) {
+        m_scene->clearIndexes();
+        m_scene->clearBackgroundPixmap();
     }
 
     emit boardCleared();
 }
 
-void BoardLoadHandler::setScene(QGraphicsScene *scene)
+void BoardLoadHandler::setScene(CustomGraphicsScene *scene)
 {
     // 如果已有场景，先清除数据
     if (m_scene && m_scene != scene) {
@@ -271,14 +271,8 @@ void BoardLoadHandler::loadBackground()
     }
 
     // 使用CustomGraphicsScene的背景功能
-    CustomGraphicsScene *customScene = dynamic_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene) {
-        customScene->setBackgroundPixmap(m_backgroundPixmap);
-    } else {
-        // 回退：直接创建图元
-        m_backgroundItem = m_scene->addPixmap(m_backgroundPixmap);
-        m_backgroundItem->setZValue(-1);
-        m_scene->setSceneRect(0, 0, m_backgroundPixmap.width(), m_backgroundPixmap.height());
+    if (m_scene) {
+        m_scene->setBackgroundPixmap(m_backgroundPixmap);
     }
 }
 
@@ -330,6 +324,7 @@ void BoardLoadHandler::drawArtifacts()
         // 预置几何属性为可见不可编辑，refreshGeometryProps 会自动更新值
         props["x"] = PropField(0.0, QStringLiteral("X:"), PropType::Number, true, false);
         props["y"] = PropField(0.0, QStringLiteral("Y:"), PropType::Number, true, false);
+        rectItem->setData(ShapeMeta::Id, ShapeMeta::nextId());
         rectItem->setData(ShapeMeta::Category, QStringLiteral("Artifact"));
         rectItem->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
         rectItem->setData(ShapeMeta::Name, artifact.artifactCode);
@@ -587,9 +582,8 @@ bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
     QPointF delta = currentScenePos - m_dragStartScenePos;
 
     // 应用边界约束：确保所有成品图元不超出石板区域
-    CustomGraphicsScene *customScene = dynamic_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene && customScene->hasBoundaryConstraint()) {
-        QRectF boundary = customScene->boundaryConstraint();
+    if (m_scene && m_scene->hasBoundaryConstraint()) {
+        QRectF boundary = m_scene->boundaryConstraint();
 
         // 计算所有成品图元移动后的总包围盒
         QRectF combinedRect;

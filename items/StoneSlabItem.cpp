@@ -20,6 +20,7 @@ StoneSlabItem::~StoneSlabItem()
 void StoneSlabItem::initItem()
 {
     // 设置图元标识
+    setData(ShapeMeta::Id, ShapeMeta::nextId());
     setData(ShapeMeta::Category, "StoneSlab");
     setData(ShapeMeta::ShapeType, ShapeMeta::Pixmap);
     setData(ShapeMeta::Name, "石板");

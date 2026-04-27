@@ -1,4 +1,5 @@
 #include "BackgroundHandler.h"
+#include "../view/CustomGraphicsScene.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
@@ -104,7 +105,7 @@ QPixmap BackgroundHandler::backgroundPixmap() const
     return m_originalPixmap;
 }
 
-void BackgroundHandler::setScene(QGraphicsScene *scene)
+void BackgroundHandler::setScene(CustomGraphicsScene *scene)
 {
     if (m_scene != scene) {
         // 切换场景时清除旧背景
@@ -121,7 +122,7 @@ void BackgroundHandler::setScene(QGraphicsScene *scene)
     }
 }
 
-QGraphicsScene *BackgroundHandler::scene() const
+CustomGraphicsScene *BackgroundHandler::scene() const
 {
     return m_scene;
 }

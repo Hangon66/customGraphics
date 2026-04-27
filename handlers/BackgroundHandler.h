@@ -6,7 +6,7 @@
 #include <QRectF>
 
 class QGraphicsPixmapItem;
-class QGraphicsScene;
+class CustomGraphicsScene;
 
 /**
  * @brief 背景图片加载与管理处理器。
@@ -125,14 +125,14 @@ public:
      *
      * @param scene QGraphicsScene 实例。
      */
-    void setScene(QGraphicsScene *scene);
+    void setScene(CustomGraphicsScene *scene);
 
     /**
      * @brief 获取关联的场景。
      *
      * @return 关联的 QGraphicsScene 实例；未设置则返回 nullptr。
      */
-    QGraphicsScene *scene() const;
+    CustomGraphicsScene *scene() const;
 
 signals:
     /**
@@ -170,7 +170,7 @@ private:
     /**
      * @brief 关联的 QGraphicsScene 实例。
      */
-    QGraphicsScene *m_scene;
+    CustomGraphicsScene *m_scene;
 
     /**
      * @brief 背景图片图元。

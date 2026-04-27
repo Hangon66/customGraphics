@@ -350,9 +350,8 @@ bool DrawHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
         // 获取碰撞配置（如果场景支持）
         const CollisionConfig *config = nullptr;
         CollisionConfig defaultConfig;
-        CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
-        if (customScene) {
-            config = &customScene->collisionConfig();
+        if (m_scene) {
+            config = &m_scene->collisionConfig();
         } else {
             defaultConfig.enableAllCollisions();
             config = &defaultConfig;
@@ -551,12 +550,12 @@ QPen DrawHandler::linePen() const
     return m_linePen;
 }
 
-void DrawHandler::setScene(QGraphicsScene *scene)
+void DrawHandler::setScene(CustomGraphicsScene *scene)
 {
     m_scene = scene;
 }
 
-QGraphicsScene *DrawHandler::scene() const
+CustomGraphicsScene *DrawHandler::scene() const
 {
     return m_scene;
 }
@@ -696,6 +695,7 @@ void DrawHandler::finishRect()
     // 设置图形属性
     m_rectPreview->setFlag(QGraphicsItem::ItemIsSelectable);
     m_rectPreview->setFlag(QGraphicsItem::ItemIsMovable);
+    m_rectPreview->setData(ShapeMeta::Id, ShapeMeta::nextId());
     m_rectPreview->setData(ShapeMeta::Category, "DrawShape");
     m_rectPreview->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
     m_rectPreview->setData(ShapeMeta::Name, name);
@@ -775,6 +775,7 @@ void DrawHandler::finishLine()
     // 设置图形属性
     m_linePreview->setFlag(QGraphicsItem::ItemIsSelectable);
     m_linePreview->setFlag(QGraphicsItem::ItemIsMovable);
+    m_linePreview->setData(ShapeMeta::Id, ShapeMeta::nextId());
     m_linePreview->setData(ShapeMeta::Category, "DrawShape");
     m_linePreview->setData(ShapeMeta::ShapeType, ShapeMeta::Line);
     m_linePreview->setData(ShapeMeta::Name, name);
@@ -886,9 +887,8 @@ QPointF DrawHandler::constrainRectEndpoint(const QPointF &targetPos)
     // 获取碰撞配置
     const CollisionConfig *config = nullptr;
     CollisionConfig defaultConfig;
-    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene) {
-        config = &customScene->collisionConfig();
+    if (m_scene) {
+        config = &m_scene->collisionConfig();
     } else {
         defaultConfig.enableAllCollisions();
         config = &defaultConfig;
@@ -959,9 +959,8 @@ QPointF DrawHandler::constrainLineEndpoint(const QPointF &targetPos)
     // 获取碰撞配置
     const CollisionConfig *config = nullptr;
     CollisionConfig defaultConfig;
-    CustomGraphicsScene *customScene = qobject_cast<CustomGraphicsScene*>(m_scene);
-    if (customScene) {
-        config = &customScene->collisionConfig();
+    if (m_scene) {
+        config = &m_scene->collisionConfig();
     } else {
         defaultConfig.enableAllCollisions();
         config = &defaultConfig;

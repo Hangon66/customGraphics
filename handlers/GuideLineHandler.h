@@ -50,6 +50,18 @@ class GuideLineHandler : public AbstractInteractionHandler
 
 public:
     /**
+     * @brief 水平标尺位置枚举。
+     *
+     * 决定水平标尺在视口的顶部还是底部，
+     * 影响辅助线的拖拽创建区域和三角形标记位置。
+     */
+    enum class RulerPosition
+    {
+        Top,    ///< 顶部水平标尺
+        Bottom  ///< 底部水平标尺
+    };
+
+    /**
      * @brief 拖拽状态枚举。
      */
     enum class DragState
@@ -192,6 +204,23 @@ public:
     int rulerWidth() const;
 
     /**
+     * @brief 设置水平标尺位置。
+     *
+     * 需要与 RulerHandler 的标尺位置保持一致，
+     * 用于判断鼠标是否在水平标尺区域内以及三角形标记绘制位置。
+     *
+     * @param position 标尺位置（顶部或底部）。
+     */
+    void setRulerPosition(RulerPosition position);
+
+    /**
+     * @brief 获取水平标尺位置。
+     *
+     * @return 当前标尺位置。
+     */
+    RulerPosition rulerPosition() const;
+
+    /**
      * @brief 设置辅助线颜色。
      *
      * @param color 辅助线颜色。
@@ -245,13 +274,15 @@ signals:
 
 private:
     /**
-     * @brief 检测视图坐标是否在顶部标尺区域内。
+     * @brief 检测视图坐标是否在水平标尺区域内。
+     *
+     * 根据 m_rulerPosition 判断顶部或底部标尺区域。
      *
      * @param viewPos 视图坐标。
      * @param view 关联的视图。
-     * @return true 在顶部标尺区域内；false 不在。
+     * @return true 在水平标尺区域内；false 不在。
      */
-    bool isInTopRuler(const QPoint &viewPos, QGraphicsView *view) const;
+    bool isInHorizontalRuler(const QPoint &viewPos, QGraphicsView *view) const;
 
     /**
      * @brief 检测视图坐标是否在左侧标尺区域内。
@@ -324,6 +355,11 @@ private:
      * @brief 辅助线吸附阈值（视图像素）。
      */
     qreal m_snapThreshold;
+
+    /**
+     * @brief 水平标尺位置（顶部或底部），与 RulerHandler 保持一致。
+     */
+    RulerPosition m_rulerPosition;
 };
 
 #endif // GUIDELINEHANDLER_H

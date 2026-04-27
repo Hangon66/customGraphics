@@ -1,5 +1,6 @@
 #include "PropertyPanel.h"
 #include "ShapeMetadata.h"
+#include "CustomGraphicsScene.h"
 #include "../handlers/DrawHandler.h"
 
 #include <QLabel>
@@ -11,6 +12,7 @@
 #include <QHBoxLayout>
 #include <QGraphicsRectItem>
 #include <QGraphicsLineItem>
+#include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QScrollArea>
 #include <QSet>
@@ -327,6 +329,20 @@ void PropertyPanel::onNameEditingFinished()
 
     QString newName = m_nameEdit->text();
 
+    // 唯一性校验：使用场景哈希索引 O(1) 查找
+    if (auto *scene = m_currentItem->scene()) {
+        if (auto *customScene = qobject_cast<CustomGraphicsScene*>(scene)) {
+            if (!customScene->isNameUnique(newName, m_currentItem)) {
+                // 名称重复，回滚并提示
+                m_nameEdit->setText(m_currentItem->data(ShapeMeta::Name).toString());
+                return;
+            }
+        }
+    }
+
+    // 记录旧名称，用于更新场景索引
+    QString oldName = m_currentItem->data(ShapeMeta::Name).toString();
+
     // 写回标签文本（LabeledRectItem/LabeledLineItem）
     if (auto *rectItem = dynamic_cast<LabeledRectItem*>(m_currentItem)) {
         rectItem->setLabelText(newName);
@@ -335,6 +351,13 @@ void PropertyPanel::onNameEditingFinished()
     }
     // 统一写入 data(Name)
     m_currentItem->setData(ShapeMeta::Name, newName);
+
+    // 同步更新场景的名称索引
+    if (auto *scene = m_currentItem->scene()) {
+        if (auto *customScene = qobject_cast<CustomGraphicsScene*>(scene)) {
+            customScene->updateItemName(m_currentItem, oldName, newName);
+        }
+    }
 
     emit propertyChanged(m_currentItem, "name", newName);
 }

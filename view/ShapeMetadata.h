@@ -5,6 +5,7 @@
 #include <QVariant>
 #include <QString>
 #include <QMetaType>
+#include <QAtomicInt>
 
 /**
  * @brief 属性值类型枚举。
@@ -212,9 +213,23 @@ namespace ShapeMeta
     {
         Category = 0,   ///< 分类标识（QString），如 "DrawShape"、"CutArea"、"StoneSlab"
         ShapeType = 1,  ///< 形状类型（int），对应 ShapeMeta::Type 枚举值
-        Name = 2,       ///< 名称（QString），图元的显示名称
-        Props = 3       ///< 属性表（PropMap），图元自描述属性
+        Name = 2,       ///< 名称（QString），图元的显示名称，需保证唯一
+        Props = 3,      ///< 属性表（PropMap），图元自描述属性
+        Id = 4          ///< 唯一ID（int），图元创建时自动分配，不可修改
     };
+
+    /**
+     * @brief 生成全局自增的唯一图元 ID。
+     *
+     * 使用静态 QAtomicInt 计数器，线程安全。
+     * ID 从 1 开始递增，0 表示未分配。
+     *
+     * @return 新分配的唯一 ID。
+     */
+    static int nextId() {
+        static QAtomicInt counter = 0;
+        return counter.fetchAndAddRelaxed(1) + 1;
+    }
 
     /**
      * @brief 形状类型枚举。

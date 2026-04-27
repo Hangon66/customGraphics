@@ -74,6 +74,80 @@ void CustomGraphicsScene::setBackgroundColor(const QColor &color)
     invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
 }
 
+void CustomGraphicsScene::addItem(QGraphicsItem *item)
+{
+    QGraphicsScene::addItem(item);
+
+    // 索引更新：名称
+    QString name = item->data(ShapeMeta::Name).toString();
+    if (!name.isEmpty()) {
+        m_nameIndex[name] = item;
+    }
+
+    // 索引更新：ID
+    int id = item->data(ShapeMeta::Id).toInt();
+    if (id > 0) {
+        m_idIndex[id] = item;
+    }
+}
+
+void CustomGraphicsScene::removeItem(QGraphicsItem *item)
+{
+    // 先移除索引（item 尚未从场景移除，data 仍可用）
+    QString name = item->data(ShapeMeta::Name).toString();
+    if (!name.isEmpty() && m_nameIndex.value(name) == item) {
+        m_nameIndex.remove(name);
+    }
+
+    int id = item->data(ShapeMeta::Id).toInt();
+    if (id > 0 && m_idIndex.value(id) == item) {
+        m_idIndex.remove(id);
+    }
+
+    QGraphicsScene::removeItem(item);
+}
+
+bool CustomGraphicsScene::isNameUnique(const QString &name, QGraphicsItem *exclude) const
+{
+    auto it = m_nameIndex.constFind(name);
+    if (it == m_nameIndex.constEnd()) {
+        return true;
+    }
+    if (exclude && it.value() == exclude) {
+        return true;
+    }
+    return false;
+}
+
+QGraphicsItem* CustomGraphicsScene::findItemByName(const QString &name) const
+{
+    return m_nameIndex.value(name, nullptr);
+}
+
+QGraphicsItem* CustomGraphicsScene::findItemById(int id) const
+{
+    return m_idIndex.value(id, nullptr);
+}
+
+void CustomGraphicsScene::updateItemName(QGraphicsItem *item, const QString &oldName, const QString &newName)
+{
+    // 移除旧名称索引（仅当旧名称确实指向该图元时）
+    if (!oldName.isEmpty() && m_nameIndex.value(oldName) == item) {
+        m_nameIndex.remove(oldName);
+    }
+
+    // 添加新名称索引
+    if (!newName.isEmpty()) {
+        m_nameIndex[newName] = item;
+    }
+}
+
+void CustomGraphicsScene::clearIndexes()
+{
+    m_nameIndex.clear();
+    m_idIndex.clear();
+}
+
 void CustomGraphicsScene::setCollisionConfig(const CollisionConfig &config)
 {
     m_collisionConfig = config;
