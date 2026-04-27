@@ -624,10 +624,10 @@ bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
     }
 
     // 通知属性面板实时刷新选中成品的坐标
-    if (customScene) {
+    if (m_scene) {
         QList<QGraphicsItem*> selected = m_scene->selectedItems();
         if (!selected.isEmpty()) {
-            emit customScene->itemMoving(selected.first());
+            emit m_scene->itemMoving(selected.first());
         }
     }
 
