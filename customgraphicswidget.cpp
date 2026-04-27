@@ -10,6 +10,7 @@
 #include "handlers/CollisionHandler.h"
 #include "commands/ShapeCommands.h"
 #include "view/PropertyPanel.h"
+#include "view/MinimapWidget.h"
 #include "view/ShapeMetadata.h"
 
 #include <QVBoxLayout>
@@ -45,6 +46,7 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
 {
     ui->setupUi(this);
     m_propertyPanel = new PropertyPanel(this);
+    m_minimapWidget = new MinimapWidget(this);
     initStoneCuttingScene();
     initToolBar();
 }
@@ -264,8 +266,16 @@ void CustomGraphicsWidget::initToolBar()
     contentLayout->setSpacing(0);
     contentLayout->addWidget(m_view, 1);
 
-    // 属性面板已在构造函数中提前创建，此处仅添加到布局
-    contentLayout->addWidget(m_propertyPanel);
+    // 属性面板和缩略图已在构造函数中提前创建，此处加入右边栏布局
+    QWidget *rightSidebar = new QWidget();
+    QVBoxLayout *rightLayout = new QVBoxLayout(rightSidebar);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(0);
+    rightLayout->addWidget(m_propertyPanel, 1);
+    rightLayout->addWidget(m_minimapWidget);
+    rightLayout->addStretch();
+
+    contentLayout->addWidget(rightSidebar);
 
     mainLayout->addLayout(contentLayout);
 
@@ -467,6 +477,21 @@ void CustomGraphicsWidget::connectHandlers()
                     }
                 }
             });
+        }
+    }
+
+    // 连接缩略图信号（m_minimapWidget 已在构造函数中提前创建）
+    if (m_minimapWidget && m_view) {
+        m_minimapWidget->setView(m_view);
+
+        // 边界约束变化时同步缩略图概览范围
+        if (m_scene) {
+            connect(m_scene, &CustomGraphicsScene::boundaryConstraintChanged,
+                    m_minimapWidget, &MinimapWidget::setOverviewRect);
+            // 初始同步边界约束
+            if (m_scene->hasBoundaryConstraint()) {
+                m_minimapWidget->setOverviewRect(m_scene->boundaryConstraint());
+            }
         }
     }
 }

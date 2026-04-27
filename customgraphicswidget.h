@@ -16,6 +16,7 @@ class RulerHandler;
 class GuideLineHandler;
 class DrawHandler;
 class PropertyPanel;
+class MinimapWidget;
 class QGraphicsItem;
 class QVariant;
 class LabeledRectItem;
@@ -57,6 +58,16 @@ public:
      * @return CustomGraphicsScene 指针。
      */
     CustomGraphicsScene* scene() const { return m_scene; }
+
+    /**
+     * @brief 获取缩略图导航组件。
+     *
+     * 外部窗口可通过此方法获取缩略图，调用 setParent() 嵌入到外部窗口中显示。
+     * 嵌入后缩略图会自动从当前布局中移除（Qt 的 reparent 机制）。
+     *
+     * @return MinimapWidget 指针。
+     */
+    MinimapWidget* minimapWidget() const { return m_minimapWidget; }
 
     // ========== 模式与操作公共接口 ==========
 
@@ -275,6 +286,11 @@ private:
      * @brief 属性面板。
      */
     PropertyPanel *m_propertyPanel;
+
+    /**
+     * @brief 缩略图导航组件。
+     */
+    MinimapWidget *m_minimapWidget;
 
     /**
      * @brief 当前选中的辅助线索引，-1 表示未选中。

@@ -163,6 +163,15 @@ public:
      */
     void pushCommand(QUndoCommand *command);
 
+signals:
+    /**
+     * @brief 视口可见区域变化信号。
+     *
+     * 当视图滚动、缩放或大小变化时发出，
+     * 用于缩略图等需要跟踪视口位置的组件实时更新。
+     */
+    void viewportRegionChanged();
+
 protected:
     /**
      * @brief 处理鼠标按下事件并分发给 Handler。

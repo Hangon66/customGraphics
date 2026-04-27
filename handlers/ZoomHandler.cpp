@@ -2,7 +2,6 @@
 
 #include <QGraphicsView>
 #include <QWheelEvent>
-
 ZoomHandler::ZoomHandler(int priority, QObject *parent)
     : AbstractInteractionHandler(priority, parent)
     , m_zoomInFactor(1.15)

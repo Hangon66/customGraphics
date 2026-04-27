@@ -351,4 +351,7 @@ void CustomGraphicsView::scrollContentsBy(int dx, int dy)
     // 强制更新 viewport 以重绘标尺
     // 标尺需要根据新的滚动位置重新绘制
     viewport()->update();
+
+    // 通知缩略图等组件视口区域已变化
+    emit viewportRegionChanged();
 }
