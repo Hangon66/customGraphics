@@ -241,19 +241,21 @@ void GuideLineHandler::paintRulerIndicators(QPainter *painter, QGraphicsView *vi
             if (m_rulerPosition == RulerPosition::Bottom) {
                 // 底部标尺：左侧标尺 Y 范围 0 ~ viewportH - m_rulerWidth
                 if (viewY >= 0 && viewY <= viewportH - m_rulerWidth) {
+                    // 向右三角形，尖端在左侧标尺内边缘
                     QPolygon triangle;
-                    triangle << QPoint(0, viewY - triSize / 2)
-                             << QPoint(triSize, viewY)
-                             << QPoint(0, viewY + triSize / 2);
+                    triangle << QPoint(m_rulerWidth - triSize, viewY - triSize / 2)
+                             << QPoint(m_rulerWidth, viewY)
+                             << QPoint(m_rulerWidth - triSize, viewY + triSize / 2);
                     painter->drawPolygon(triangle);
                 }
             } else {
                 // 顶部标尺：左侧标尺 Y 范围 m_rulerWidth ~ viewportH
                 if (viewY >= m_rulerWidth && viewY <= viewportH) {
+                    // 向右三角形，尖端在左侧标尺内边缘
                     QPolygon triangle;
-                    triangle << QPoint(0, viewY - triSize / 2)
-                             << QPoint(triSize, viewY)
-                             << QPoint(0, viewY + triSize / 2);
+                    triangle << QPoint(m_rulerWidth - triSize, viewY - triSize / 2)
+                             << QPoint(m_rulerWidth, viewY)
+                             << QPoint(m_rulerWidth - triSize, viewY + triSize / 2);
                     painter->drawPolygon(triangle);
                 }
             }
@@ -265,12 +267,12 @@ void GuideLineHandler::paintRulerIndicators(QPainter *painter, QGraphicsView *vi
             }
 
             if (m_rulerPosition == RulerPosition::Bottom) {
-                // 底部标尺上绘制向上三角形
-                int bottomY = viewportH - m_rulerWidth;
+                // 底部标尺上绘制向上三角形（高度=triSize，不被拉长）
+                int topOfRuler = viewportH - m_rulerWidth;
                 QPolygon triangle;
-                triangle << QPoint(viewX - triSize / 2, viewportH)
-                         << QPoint(viewX, bottomY)
-                         << QPoint(viewX + triSize / 2, viewportH);
+                triangle << QPoint(viewX - triSize / 2, topOfRuler + triSize)
+                         << QPoint(viewX, topOfRuler)
+                         << QPoint(viewX + triSize / 2, topOfRuler + triSize);
                 painter->drawPolygon(triangle);
             } else {
                 // 顶部标尺上绘制向下三角形
