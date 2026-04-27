@@ -78,6 +78,39 @@ void CollisionConfig::enableRectAndLineCollision()
     setCollisionEnabled(ShapeMeta::Rect, ShapeMeta::Line, true);
 }
 
+void CollisionConfig::setCollisionMargin(qreal margin)
+{
+    m_collisionMargin = qMax(0.0, margin);
+}
+
+qreal CollisionConfig::collisionMargin() const
+{
+    return m_collisionMargin;
+}
+
+void CollisionConfig::setCollisionMarginMM(qreal mm)
+{
+    m_collisionMargin = qMax(0.0, mm * m_mmToSceneScale);
+}
+
+qreal CollisionConfig::collisionMarginMM() const
+{
+    if (qFuzzyIsNull(m_mmToSceneScale)) {
+        return 0.0;
+    }
+    return m_collisionMargin / m_mmToSceneScale;
+}
+
+void CollisionConfig::setMmToSceneScale(qreal scale)
+{
+    m_mmToSceneScale = (scale > 0.0) ? scale : 1.0;
+}
+
+qreal CollisionConfig::mmToSceneScale() const
+{
+    return m_mmToSceneScale;
+}
+
 // ==================== CollisionHandler 实现 ====================
 
 CollisionHandler::CollisionHandler()
@@ -96,6 +129,9 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
         return nullptr;
     }
 
+    // 获取碰撞边距
+    qreal margin = (config ? config->collisionMargin() : 0.0);
+
     QList<QGraphicsItem*> itemsAtPoint = scene->items(point);
     for (QGraphicsItem *item : itemsAtPoint) {
         if (item == excludeItem) {
@@ -107,11 +143,41 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
             continue;
         }
 
-        // 点检测不检查碰撞配置，因为这是用于判断点击位置是否有图元
-        // 而不是真正的碰撞检测
-        (void)config;  // 忽略配置参数
+        // 无边距时直接返回匹配项
+        if (qFuzzyIsNull(margin)) {
+            return item;
+        }
 
-        return item;
+        // 有边距时，检查点是否在障碍物扩展区域内
+        QRectF itemRect = item->boundingRect().translated(item->pos());
+        QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
+        if (expandedRect.contains(point)) {
+            return item;
+        }
+    }
+
+    // 有边距时，还需检查附近图元（点可能不在图元上但在扩展区域内）
+    if (!qFuzzyIsNull(margin)) {
+        QRectF searchRect(point.x() - margin, point.y() - margin, margin * 2, margin * 2);
+        QList<QGraphicsItem*> nearbyItems = scene->items(searchRect);
+        for (QGraphicsItem *item : nearbyItems) {
+            if (item == excludeItem) {
+                continue;
+            }
+            if (!isCollisionItem(item)) {
+                continue;
+            }
+            // 已在上方检查过的跳过
+            if (itemsAtPoint.contains(item)) {
+                continue;
+            }
+
+            QRectF itemRect = item->boundingRect().translated(item->pos());
+            QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
+            if (expandedRect.contains(point)) {
+                return item;
+            }
+        }
     }
 
     return nullptr;
@@ -125,6 +191,8 @@ QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene,
     if (!scene) {
         return nullptr;
     }
+
+    qreal margin = config.collisionMargin();
 
     QList<QGraphicsItem*> itemsAtPoint = scene->items(point);
     for (QGraphicsItem *item : itemsAtPoint) {
@@ -142,7 +210,44 @@ QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene,
             continue;
         }
 
-        return item;
+        // 无边距时直接返回匹配项
+        if (qFuzzyIsNull(margin)) {
+            return item;
+        }
+
+        // 有边距时，检查点是否在障碍物扩展区域内
+        QRectF itemRect = item->boundingRect().translated(item->pos());
+        QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
+        if (expandedRect.contains(point)) {
+            return item;
+        }
+    }
+
+    // 有边距时，还需检查附近图元
+    if (!qFuzzyIsNull(margin)) {
+        QRectF searchRect(point.x() - margin, point.y() - margin, margin * 2, margin * 2);
+        QList<QGraphicsItem*> nearbyItems = scene->items(searchRect);
+        for (QGraphicsItem *item : nearbyItems) {
+            if (item == excludeItem) {
+                continue;
+            }
+            if (!isCollisionItem(item)) {
+                continue;
+            }
+            if (!isCollisionItemWithConfig(item, sourceType, config)) {
+                continue;
+            }
+            // 已在上方检查过的跳过
+            if (itemsAtPoint.contains(item)) {
+                continue;
+            }
+
+            QRectF itemRect = item->boundingRect().translated(item->pos());
+            QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
+            if (expandedRect.contains(point)) {
+                return item;
+            }
+        }
     }
 
     return nullptr;
@@ -156,7 +261,16 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
         return nullptr;
     }
 
-    QList<QGraphicsItem*> items = scene->items(rect);
+    // 获取碰撞边距
+    qreal margin = (config ? config->collisionMargin() : 0.0);
+
+    // 有边距时，扩大搜索区域以包含附近图元
+    QRectF searchRect = rect;
+    if (!qFuzzyIsNull(margin)) {
+        searchRect = rect.adjusted(-margin, -margin, margin, margin);
+    }
+
+    QList<QGraphicsItem*> items = scene->items(searchRect);
     for (QGraphicsItem *item : items) {
         if (item == excludeItem) {
             continue;
@@ -178,7 +292,11 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
 
         // 使用 intersects 区分边界接触和真正重叠
         // QRectF::intersects 在边界接触时返回 false，只有真正重叠才返回 true
+        // 如果有边距，障碍物边界向四周扩展
         QRectF itemRect = item->boundingRect().translated(item->pos());
+        if (!qFuzzyIsNull(margin)) {
+            itemRect = itemRect.adjusted(-margin, -margin, margin, margin);
+        }
         if (rect.intersects(itemRect)) {
             return item;
         }
@@ -256,7 +374,8 @@ ShapeMeta::Type CollisionHandler::getShapeType(QGraphicsItem *item)
 }
 
 QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QPointF &targetPos,
-                                                    const QList<QGraphicsItem*> &otherItems)
+                                                    const QList<QGraphicsItem*> &otherItems,
+                                                    qreal margin)
 {
     if (!item || otherItems.isEmpty()) {
         return targetPos;
@@ -285,11 +404,15 @@ QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QP
         }
 
         QRectF obstacleRect = obstacle->boundingRect().translated(obstacle->pos());
+        // 有边距时扩展障碍物区域
+        if (!qFuzzyIsNull(margin)) {
+            obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
+        }
 
         // 如果目标位置与障碍物重叠，计算阻挡位置
         if (targetRect.intersects(obstacleRect)) {
             blockedPos = calculateRectBlockPosition(itemRect.translated(currentPos),
-                                                     targetRect, obstacleRect);
+                                                     targetRect, obstacleRect, margin);
 
             // 更新目标矩形，用于后续障碍物检测
             targetRect = itemRect.translated(blockedPos);
@@ -306,8 +429,11 @@ QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QP
 
 QPointF CollisionHandler::calculateRectBlockPosition(const QRectF &movingRect,
                                                       const QRectF &targetRect,
-                                                      const QRectF &obstacleRect)
+                                                      const QRectF &obstacleRect,
+                                                      qreal margin)
 {
+    Q_UNUSED(margin)
+
     // 计算移动方向
     qreal dx = targetRect.left() - movingRect.left();
     qreal dy = targetRect.top() - movingRect.top();

@@ -120,9 +120,11 @@ void CustomGraphicsWidget::initStoneCuttingScene()
     // 创建场景
     m_scene = new CustomGraphicsScene(this);
 
-    // 配置碰撞检测：仅启用矩形间碰撞
+    // 配置碰撞检测：仅启用矩形间碰撞，边距和缩放因子从场景配置读取
     CollisionConfig collisionConfig;
     collisionConfig.enableRectOnlyCollision();
+    collisionConfig.setMmToSceneScale(config.mmToSceneScale);
+    collisionConfig.setCollisionMarginMM(config.collisionMarginMM);
     m_scene->setCollisionConfig(collisionConfig);
     m_scene->setCollisionEnabled(true);
 

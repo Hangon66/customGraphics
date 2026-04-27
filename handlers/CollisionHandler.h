@@ -15,8 +15,9 @@ class QGraphicsScene;
 /**
  * @brief 碰撞配置类。
  *
- * 定义哪些图元类型对之间可以发生碰撞。
+ * 定义哪些图元类型对之间可以发生碰撞，以及碰撞边距。
  * 例如：仅矩形间碰撞、矩形与线条都碰撞等。
+ * 支持像素（场景坐标）和毫米两种边距设置接口。
  */
 class CollisionConfig
 {
@@ -80,6 +81,62 @@ public:
      */
     void enableRectAndLineCollision();
 
+    // ========== 碰撞边距配置 ==========
+
+    /**
+     * @brief 设置碰撞边距（像素/场景坐标单位）。
+     *
+     * 碰撞检测时障碍物边界向四周扩展该值，使图元间保持指定间距。
+     * 设置此值会覆盖之前通过 setCollisionMarginMM 设置的边距。
+     *
+     * @param margin 边距值，单位：场景坐标像素；0.0 表示无边距。
+     */
+    void setCollisionMargin(qreal margin);
+
+    /**
+     * @brief 获取碰撞边距（像素/场景坐标单位）。
+     *
+     * @return 当前边距值，单位：场景坐标像素。
+     */
+    qreal collisionMargin() const;
+
+    /**
+     * @brief 设置碰撞边距（毫米）。
+     *
+     * 内部通过 mmToSceneScale 将毫米转换为场景坐标单位存储。
+     * 设置此值会覆盖之前通过 setCollisionMargin 设置的边距。
+     *
+     * @param mm 边距值，单位：毫米；0.0 表示无边距。
+     */
+    void setCollisionMarginMM(qreal mm);
+
+    /**
+     * @brief 获取碰撞边距（毫米）。
+     *
+     * 内部通过 mmToSceneScale 将存储的场景坐标值转换回毫米。
+     *
+     * @return 当前边距值，单位：毫米。
+     */
+    qreal collisionMarginMM() const;
+
+    /**
+     * @brief 设置毫米到场景坐标的缩放因子。
+     *
+     * 用于 setCollisionMarginMM / collisionMarginMM 的单位转换。
+     * 例如：1场景坐标 = 1mm 时，scale = 1.0。
+     * 默认值为 1.0，与项目 RulerHandler(1.0, "mm") 配置一致。
+     *
+     * @param scale 缩放因子，必须大于 0。
+     */
+    void setMmToSceneScale(qreal scale);
+
+    /**
+     * @brief 获取毫米到场景坐标的缩放因子。
+     *
+     * @return 当前缩放因子。
+     */
+    qreal mmToSceneScale() const;
+
 private:
     /**
      * @brief 存储允许碰撞的类型对。
@@ -87,6 +144,22 @@ private:
      * 使用 QPair 存储类型对，(type1, type2) 和 (type2, type1) 视为相同。
      */
     QSet<QPair<int, int>> m_enabledPairs;
+
+    /**
+     * @brief 碰撞边距，单位：场景坐标像素。
+     *
+     * 碰撞检测时障碍物边界向四周扩展该值。默认 0.0 表示无边距。
+     */
+    qreal m_collisionMargin = 0.0;
+
+    /**
+     * @brief 毫米到场景坐标的缩放因子。
+     *
+     * 用于 mm 边距与场景坐标的相互转换：
+     * margin_scene = margin_mm * m_mmToSceneScale。
+     * 默认 1.0，即 1mm = 1场景坐标单位。
+     */
+    qreal m_mmToSceneScale = 1.0;
 };
 
 /**
@@ -157,10 +230,12 @@ public:
      * @param item 要移动的图元。
      * @param targetPos 目标位置。
      * @param otherItems 其他可能阻挡的图元列表。
+     * @param margin 碰撞边距，障碍物边界向四周扩展该值；默认 0.0 无边距。
      * @return 考虑阻挡后的实际可移动位置。
      */
     static QPointF calculateBlockedPosition(QGraphicsItem *item, const QPointF &targetPos,
-                                             const QList<QGraphicsItem*> &otherItems);
+                                             const QList<QGraphicsItem*> &otherItems,
+                                             qreal margin = 0.0);
 
     /**
      * @brief 计算两个矩形碰撞时的阻挡位置。
@@ -168,11 +243,13 @@ public:
      * @param movingRect 移动中的矩形。
      * @param targetRect 目标位置矩形。
      * @param obstacleRect 障碍物矩形。
+     * @param margin 碰撞边距，障碍物边界向四周扩展该值；默认 0.0 无边距。
      * @return 阻挡后的位置（移动矩形左上角）。
      */
     static QPointF calculateRectBlockPosition(const QRectF &movingRect,
                                                const QRectF &targetRect,
-                                               const QRectF &obstacleRect);
+                                               const QRectF &obstacleRect,
+                                               qreal margin = 0.0);
 
     /**
      * @brief 判断图元是否参与碰撞检测（不考虑配置）。

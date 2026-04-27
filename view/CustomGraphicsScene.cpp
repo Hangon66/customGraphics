@@ -412,6 +412,9 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
         // 获取源图元类型
         ShapeMeta::Type sourceType = CollisionHandler::getShapeType(item);
 
+        // 获取碰撞边距
+        qreal margin = m_collisionConfig.collisionMargin();
+
         // 获取场景中其他可能阻挡的图元
         QList<QGraphicsItem*> obstacles = getObstacles(item, sourceType);
 
@@ -420,6 +423,10 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
 
             for (QGraphicsItem *obstacle : obstacles) {
                 QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+                // 有边距时扩展障碍物区域
+                if (!qFuzzyIsNull(margin)) {
+                    obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
+                }
 
                 if (newItemRect.intersects(obstacleRect)) {
                     QPointF blockedPos = calculateBlockedPosition(itemShapeRect, oldPos, newPos, obstacleRect);
@@ -440,6 +447,10 @@ void CustomGraphicsScene::handleSingleItemMove(QGraphicsSceneMouseEvent *event, 
         QRectF finalItemRect = itemShapeRect.translated(newPos);
         for (QGraphicsItem *obstacle : obstacles) {
             QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+            // 有边距时扩展障碍物区域
+            if (!qFuzzyIsNull(margin)) {
+                obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
+            }
             if (finalItemRect.intersects(obstacleRect)) {
                 // 最终位置与障碍物重叠，取消本次移动，保持原位置
                 item->setPos(oldPos);
@@ -481,6 +492,9 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
     bool needRollback = false;
     QPointF minBlockedDelta = delta;  // 最小阻挡偏移量
 
+    // 获取碰撞边距
+    qreal margin = m_collisionConfig.collisionMargin();
+
     // 检查每个图元
     for (QGraphicsItem *item : selected) {
         if (!CollisionHandler::isCollisionItem(item)) {
@@ -498,6 +512,10 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
 
             for (QGraphicsItem *obstacle : obstacles) {
                 QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+                // 有边距时扩展障碍物区域
+                if (!qFuzzyIsNull(margin)) {
+                    obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
+                }
 
                 if (newItemRect.intersects(obstacleRect)) {
                     // 计算需要的阻挡偏移量
@@ -583,6 +601,10 @@ void CustomGraphicsScene::handleMultiItemMove(QGraphicsSceneMouseEvent *event, c
 
             for (QGraphicsItem *obstacle : obstacles) {
                 QRectF obstacleRect = obstacle->shape().boundingRect().translated(obstacle->pos());
+                // 有边距时扩展障碍物区域
+                if (!qFuzzyIsNull(margin)) {
+                    obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
+                }
                 if (finalItemRect.intersects(obstacleRect)) {
                     hasOverlap = true;
                     break;

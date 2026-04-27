@@ -107,6 +107,25 @@ struct SceneConfig
      */
     QString deviceIconPath;
 
+    // ========== 碰撞配置 ==========
+
+    /**
+     * @brief 碰撞边距，单位：毫米。
+     *
+     * 碰撞检测时障碍物边界向四周扩展该值，使图元间保持指定间距。
+     * 0.0 表示无边距（图元可紧贴）。默认 0.0。
+     * 内部通过 mmToSceneScale 转换为场景坐标单位。
+     */
+    double collisionMarginMM = 0.0;
+
+    /**
+     * @brief 毫米到场景坐标的缩放因子。
+     *
+     * 用于碰撞边距的 mm 到场景坐标转换，与 rulerUnitPixel 含义一致：
+     * 1mm 对应的场景坐标像素数。默认 1.0（即 1mm = 1场景单位）。
+     */
+    double mmToSceneScale = 1.0;
+
     // ========== Handler 工厂 ==========
 
     /**

@@ -26,19 +26,23 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
     config.enableDrawRect = true;
     config.enableDrawLine = false;
     config.enableNaming = true;
-    config.defaultNamePrefix = "Cut";
+    config.defaultNamePrefix = "成品";
 
     // 拖放配置
     config.enableDragDrop = false;
 
+    // 碰撞配置 - 石材切割场景需要精确间距
+    config.collisionMarginMM = 3.1;      // 碰撞边距3mm
+    config.mmToSceneScale = 1.0;         // 1场景坐标=1mm
+
     // Handler 工厂
-    config.createHandlers = []() -> QList<IInteractionHandler*> {
+    config.createHandlers = [config]() -> QList<IInteractionHandler*> {
         QList<IInteractionHandler*> handlers;
         handlers << new ZoomHandler(100);
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
-        handlers << new RulerHandler(1.0, "mm");
-        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Cut");
+        handlers << new RulerHandler(config.rulerUnitPixel, config.rulerUnitName);
+        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, config.defaultNamePrefix);
         handlers << new RubberBandHandler(10);  // 框选优先级最低
         return handlers;
     };
@@ -70,13 +74,17 @@ SceneConfig SceneConfigFactory::createFloorPlanConfig()
     // 拖放配置
     config.enableDragDrop = true;
 
+    // 碰撞配置 - 楼层场景无边距
+    config.collisionMarginMM = 0.0;      // 无碰撞边距
+    config.mmToSceneScale = 1.0;
+
     // Handler 工厂
-    config.createHandlers = []() -> QList<IInteractionHandler*> {
+    config.createHandlers = [config]() -> QList<IInteractionHandler*> {
         QList<IInteractionHandler*> handlers;
         handlers << new ZoomHandler(100);
         handlers << new PanHandler(50);
         handlers << new BackgroundHandler();
-        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, "Area");
+        handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, config.defaultNamePrefix);
         handlers << new DragDropHandler();
         handlers << new RubberBandHandler(10);  // 框选优先级最低
         return handlers;
