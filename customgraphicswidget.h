@@ -275,5 +275,10 @@ private:
      * @brief 属性面板。
      */
     PropertyPanel *m_propertyPanel;
+
+    /**
+     * @brief 当前选中的辅助线索引，-1 表示未选中。
+     */
+    int m_selectedGuideLineIndex;
 };
 #endif // CUSTOMGRAPHICSWIDGET_H

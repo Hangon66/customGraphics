@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "ShapeMetadata.h"
+#include "../handlers/GuideLineHandler.h"
 
 class QLabel;
 class QLineEdit;
@@ -53,6 +54,16 @@ public:
     void clearPanel();
 
     /**
+     * @brief 更新面板显示指定辅助线的属性。
+     *
+     * 构造辅助线的 PropMap（类型只读 + 位置可编辑），动态生成属性行。
+     *
+     * @param type 辅助线方向（水平或垂直）。
+     * @param position 辅助线的场景坐标位置。
+     */
+    void updateFromGuideLine(GuideLine::Type type, qreal position);
+
+    /**
      * @brief 设置面板是否可见。
      *
      * @param visible true 显示面板；false 隐藏面板。
@@ -80,6 +91,13 @@ signals:
      * @param value 修改后的值。
      */
     void propertyChanged(QGraphicsItem *item, const QString &key, const QVariant &value);
+
+    /**
+     * @brief 辅助线位置属性被编辑修改的信号。
+     *
+     * @param position 修改后的位置值。
+     */
+    void guideLinePropertyChanged(qreal position);
 
 private slots:
     /**
@@ -130,6 +148,13 @@ private:
      * @brief 阻塞信号标志，防止程序性更新触发编辑信号。
      */
     bool m_updating;
+
+    /**
+     * @brief 当前是否显示辅助线属性。
+     *
+     * true 表示当前显示辅助线属性；false 表示显示图元属性或未选中。
+     */
+    bool m_isGuideLine;
 
     /**
      * @brief 当前关联的图元。

@@ -77,6 +77,8 @@ bool GuideLineHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
         } else {
             view->viewport()->setCursor(Qt::SplitHCursor);
         }
+        // 发出辅助线选中信号，用于属性面板显示
+        emit guideLineSelected(idx, m_guideLines[idx].type, m_guideLines[idx].position);
         view->viewport()->update();
         return true;
     }
@@ -98,6 +100,11 @@ bool GuideLineHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
         m_dragGuideLine.position = scenePos.y();
     } else {
         m_dragGuideLine.position = scenePos.x();
+    }
+
+    // 拖动中实时发出位置更新信号
+    if (m_dragState == DragState::Moving && m_dragIndex >= 0) {
+        emit guideLineMoved(m_dragIndex, m_dragGuideLine.position);
     }
 
     view->viewport()->update();
@@ -169,7 +176,7 @@ void GuideLineHandler::paint(QPainter *painter, QGraphicsView *view)
     }
 
     // 绘制已有辅助线
-    QPen normalPen(m_guideLineColor, 1, Qt::DashLine);
+    QPen normalPen(m_guideLineColor, 2, Qt::DashLine);
     normalPen.setCosmetic(true);
     painter->setPen(normalPen);
 
@@ -198,7 +205,7 @@ void GuideLineHandler::paint(QPainter *painter, QGraphicsView *view)
     }
 
     // 绘制拖拽中的辅助线（高亮色）
-    QPen dragPen(m_dragColor, 1, Qt::DashLine);
+    QPen dragPen(m_dragColor, 2, Qt::DashLine);
     dragPen.setCosmetic(true);
     painter->setPen(dragPen);
 
@@ -225,7 +232,7 @@ void GuideLineHandler::paintRulerIndicators(QPainter *painter, QGraphicsView *vi
     // 绘制标尺区域内的辅助线小三角形标记
     // 水平辅助线 → 在左侧标尺上绘制向右三角形（指示 Y 位置）
     // 垂直辅助线 → 在水平标尺上绘制三角形（指示 X 位置）
-    QPen indicatorPen(m_guideLineColor, 1);
+    QPen indicatorPen(m_guideLineColor, 2);
     indicatorPen.setCosmetic(true);
     painter->setPen(indicatorPen);
     painter->setBrush(m_guideLineColor);
@@ -457,4 +464,12 @@ int GuideLineHandler::findGuideLineAt(const QPoint &viewPos, QGraphicsView *view
     }
 
     return -1;
+}
+
+void GuideLineHandler::setGuideLinePosition(int index, qreal position)
+{
+    if (index >= 0 && index < m_guideLines.size()) {
+        m_guideLines[index].position = position;
+        emit guideLinesChanged();
+    }
 }

@@ -20,6 +20,7 @@
 PropertyPanel::PropertyPanel(QWidget *parent)
     : QWidget(parent)
     , m_updating(false)
+    , m_isGuideLine(false)
     , m_currentItem(nullptr)
     , m_titleLabel(nullptr)
     , m_nameEdit(nullptr)
@@ -134,6 +135,7 @@ void PropertyPanel::initUI()
 void PropertyPanel::updateFromItem(QGraphicsItem *item)
 {
     m_updating = true;
+    m_isGuideLine = false;
     m_currentItem = item;
 
     if (!item) {
@@ -145,6 +147,9 @@ void PropertyPanel::updateFromItem(QGraphicsItem *item)
     // 显示属性内容，隐藏未选中提示
     m_contentWidget->setVisible(m_panelBody->isVisible());
     m_noSelectionLabel->setVisible(false);
+
+    // 名称编辑框恢复可编辑
+    m_nameEdit->setEnabled(true);
 
     // 从 data() 读取元数据
     PropMap props = item->data(ShapeMeta::Props).value<PropMap>();
@@ -166,6 +171,38 @@ void PropertyPanel::updateFromItem(QGraphicsItem *item)
         updatePropertyValues(props);
     } else {
         // 键变化（切换图元/首次选中），重建控件
+        buildPropertyRows(props);
+        m_lastPropKeys = newKeys;
+    }
+
+    m_updating = false;
+}
+
+void PropertyPanel::updateFromGuideLine(GuideLine::Type type, qreal position)
+{
+    m_updating = true;
+    m_isGuideLine = true;
+    m_currentItem = nullptr;
+
+    // 显示属性内容，隐藏未选中提示
+    m_contentWidget->setVisible(m_panelBody->isVisible());
+    m_noSelectionLabel->setVisible(false);
+
+    // 名称框显示辅助线类型，设为只读
+    m_nameEdit->setText(type == GuideLine::Horizontal ? QStringLiteral("水平辅助线") : QStringLiteral("垂直辅助线"));
+    m_nameEdit->setEnabled(false);
+
+    // 构造辅助线属性表
+    PropMap props;
+    props["typeName"] = PropField(type == GuideLine::Horizontal ? QStringLiteral("水平") : QStringLiteral("垂直"),
+                                   QStringLiteral("类型:"), PropType::Text, true, false);
+    props["position"] = PropField(position, QStringLiteral("位置:"), PropType::Number, true, true);
+
+    // 判断是否需要重建控件
+    QStringList newKeys = props.keys();
+    if (newKeys == m_lastPropKeys && !m_propWidgets.isEmpty()) {
+        updatePropertyValues(props);
+    } else {
         buildPropertyRows(props);
         m_lastPropKeys = newKeys;
     }
@@ -235,7 +272,13 @@ void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
             spin->setValue(field.toDouble());
             spin->setEnabled(field.isEditable());
             connect(spin, &QDoubleSpinBox::editingFinished, this, [this, key, spin]() {
-                if (m_updating || !m_currentItem) return;
+                if (m_updating) return;
+                // 辅助线模式：发出辅助线位置变更信号
+                if (m_isGuideLine && key == "position") {
+                    emit guideLinePropertyChanged(spin->value());
+                    return;
+                }
+                if (!m_currentItem) return;
                 qDebug() << "[PropertyPanel] spin editingFinished: key=" << key << "value=" << spin->value();
                 PropMap props = m_currentItem->data(ShapeMeta::Props).value<PropMap>();
                 if (props.contains(key)) {
@@ -297,17 +340,19 @@ void PropertyPanel::clearPropertyRows()
 void PropertyPanel::clearPanel()
 {
     m_currentItem = nullptr;
+    m_isGuideLine = false;
     m_contentWidget->setVisible(false);
     m_noSelectionLabel->setVisible(true);
     m_nameEdit->clear();
+    m_nameEdit->setEnabled(true);
     clearPropertyRows();
 }
 
 void PropertyPanel::setPanelVisible(bool visible)
 {
     m_panelBody->setVisible(visible);
-    m_contentWidget->setVisible(visible && m_currentItem != nullptr);
-    m_noSelectionLabel->setVisible(visible && m_currentItem == nullptr);
+    m_contentWidget->setVisible(visible && (m_currentItem != nullptr || m_isGuideLine));
+    m_noSelectionLabel->setVisible(visible && m_currentItem == nullptr && !m_isGuideLine);
     m_toggleButton->setText(visible ? ">" : "<");
 }
 

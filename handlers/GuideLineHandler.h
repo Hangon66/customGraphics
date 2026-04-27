@@ -264,6 +264,16 @@ public:
      */
     qreal snapThreshold() const;
 
+    /**
+     * @brief 设置指定辅助线的位置。
+     *
+     * 供外部（如属性面板编辑）修改辅助线位置时调用。
+     *
+     * @param index 辅助线索引，需在有效范围内。
+     * @param position 新的场景坐标位置。
+     */
+    void setGuideLinePosition(int index, qreal position);
+
 signals:
     /**
      * @brief 辅助线列表变化信号。
@@ -271,6 +281,34 @@ signals:
      * 当辅助线被添加、移除或移动时发出。
      */
     void guideLinesChanged();
+
+    /**
+     * @brief 辅助线被点击选中信号。
+     *
+     * 当用户点击辅助线时发出，用于在属性面板中显示辅助线属性。
+     *
+     * @param index 被选中的辅助线索引。
+     * @param type 辅助线方向（水平或垂直）。
+     * @param position 辅助线的场景坐标位置。
+     */
+    void guideLineSelected(int index, GuideLine::Type type, qreal position);
+
+    /**
+     * @brief 辅助线拖动中位置更新信号。
+     *
+     * 拖动辅助线时持续发出，用于实时更新属性面板中的位置值。
+     *
+     * @param index 正在拖动的辅助线索引。
+     * @param position 辅助线当前场景坐标位置。
+     */
+    void guideLineMoved(int index, qreal position);
+
+    /**
+     * @brief 辅助线取消选中信号。
+     *
+     * 拖动辅助线释放时发出，用于清除属性面板中的辅助线属性显示。
+     */
+    void guideLineDeselected();
 
 private:
     /**

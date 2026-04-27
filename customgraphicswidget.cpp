@@ -41,8 +41,10 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     , m_redoButton(nullptr)
     , m_toolBar(nullptr)
     , m_propertyPanel(nullptr)
+    , m_selectedGuideLineIndex(-1)
 {
     ui->setupUi(this);
+    m_propertyPanel = new PropertyPanel(this);
     initStoneCuttingScene();
     initToolBar();
 }
@@ -262,13 +264,8 @@ void CustomGraphicsWidget::initToolBar()
     contentLayout->setSpacing(0);
     contentLayout->addWidget(m_view, 1);
 
-    // 创建属性面板
-    m_propertyPanel = new PropertyPanel(this);
+    // 属性面板已在构造函数中提前创建，此处仅添加到布局
     contentLayout->addWidget(m_propertyPanel);
-
-    // 连接属性面板信号（必须在 m_propertyPanel 创建之后）
-    connect(m_propertyPanel, &PropertyPanel::propertyChanged,
-            this, &CustomGraphicsWidget::onPropertyChanged);
 
     mainLayout->addLayout(contentLayout);
 
@@ -400,6 +397,35 @@ void CustomGraphicsWidget::connectHandlers()
         });
     }
 
+    // 连接辅助线选中/拖动/取消选中信号，同步属性面板
+    if (m_guideLineHandler) {
+        connect(m_guideLineHandler, &GuideLineHandler::guideLineSelected,
+                this, [this](int index, GuideLine::Type type, qreal position) {
+            m_selectedGuideLineIndex = index;
+            if (m_propertyPanel) {
+                m_propertyPanel->updateFromGuideLine(type, position);
+            }
+        });
+
+        connect(m_guideLineHandler, &GuideLineHandler::guideLineMoved,
+                this, [this](int index, qreal position) {
+            m_selectedGuideLineIndex = index;
+            if (m_propertyPanel) {
+                // 获取辅助线类型
+                GuideLine gl = m_guideLineHandler->guideLine(index);
+                m_propertyPanel->updateFromGuideLine(gl.type, position);
+            }
+        });
+
+        connect(m_guideLineHandler, &GuideLineHandler::guideLineDeselected,
+                this, [this]() {
+            m_selectedGuideLineIndex = -1;
+            if (m_propertyPanel) {
+                m_propertyPanel->clearPanel();
+            }
+        });
+    }
+
     // 连接场景的图元移动信号，支持移动撤销
     if (m_scene) {
         connect(m_scene, &CustomGraphicsScene::itemMoved,
@@ -423,6 +449,25 @@ void CustomGraphicsWidget::connectHandlers()
                 m_propertyPanel->updateFromItem(item);
             }
         });
+    }
+
+    // 连接属性面板信号（m_propertyPanel 已在构造函数中提前创建）
+    if (m_propertyPanel) {
+        connect(m_propertyPanel, &PropertyPanel::propertyChanged,
+                this, &CustomGraphicsWidget::onPropertyChanged);
+
+        // 连接属性面板的辅助线位置编辑信号
+        if (m_guideLineHandler) {
+            connect(m_propertyPanel, &PropertyPanel::guideLinePropertyChanged,
+                    this, [this](qreal position) {
+                if (m_selectedGuideLineIndex >= 0 && m_guideLineHandler) {
+                    m_guideLineHandler->setGuideLinePosition(m_selectedGuideLineIndex, position);
+                    if (m_view) {
+                        m_view->viewport()->update();
+                    }
+                }
+            });
+        }
     }
 }
 
