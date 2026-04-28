@@ -72,6 +72,20 @@ public:
      */
     MinimapWidget* minimapWidget() const { return m_minimapWidget; }
 
+    /**
+     * @brief 设置属性面板是否可见。
+     *
+     * @param visible true 显示属性面板；false 隐藏属性面板。
+     */
+    void setPropertyPanelVisible(bool visible);
+
+    /**
+     * @brief 获取属性面板是否可见。
+     *
+     * @return true 属性面板可见；false 属性面板隐藏。
+     */
+    bool isPropertyPanelVisible() const;
+
     // ========== 模式与操作公共接口 ==========
 
     /**

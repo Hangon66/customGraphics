@@ -117,6 +117,18 @@ bool CustomGraphicsWidget::isToolBarVisible() const
     return m_toolBar ? m_toolBar->isVisible() : false;
 }
 
+void CustomGraphicsWidget::setPropertyPanelVisible(bool visible)
+{
+    if (m_propertyPanel) {
+        m_propertyPanel->setPanelVisible(visible);
+    }
+}
+
+bool CustomGraphicsWidget::isPropertyPanelVisible() const
+{
+    return m_propertyPanel ? m_propertyPanel->isPanelVisible() : false;
+}
+
 void CustomGraphicsWidget::initStoneCuttingScene()
 {
     // 获取石材切割场景配置
