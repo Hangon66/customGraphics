@@ -165,6 +165,23 @@ public:
     void refresh();
 
     /**
+     * @brief 设置刻度标签的小数精度。
+     *
+     * 影响标尺刻度标签显示的小数位数。默认值为 0，
+     * 即刻度值显示为整数。
+     *
+     * @param precision 小数位数，必须 >= 0。
+     */
+    void setDecimalPrecision(int precision);
+
+    /**
+     * @brief 获取刻度标签的小数精度。
+     *
+     * @return 当前小数精度。
+     */
+    int decimalPrecision() const;
+
+    /**
      * @brief 绘制标尺。
      *
      * 通常由视图的绘制事件自动调用。
@@ -251,6 +268,13 @@ private:
      * @brief 刻度字体。
      */
     QFont m_font;
+
+    /**
+     * @brief 刻度标签小数精度。
+     *
+     * 控制 formatTickLabel 输出的小数位数，默认 0。
+     */
+    int m_decimalPrecision;
 };
 
 #endif // RULERHANDLER_H

@@ -16,6 +16,7 @@ RulerHandler::RulerHandler(double unitPixel, const QString &unitName,
     , m_position(RulerPosition::Both)
     , m_visible(true)
     , m_font("Arial", 8)
+    , m_decimalPrecision(0)
 {
 }
 
@@ -118,6 +119,18 @@ bool RulerHandler::isVisible() const
 void RulerHandler::refresh()
 {
     // 标尺在绘制时自动更新，无需额外操作
+}
+
+void RulerHandler::setDecimalPrecision(int precision)
+{
+    if (precision >= 0 && precision != m_decimalPrecision) {
+        m_decimalPrecision = precision;
+    }
+}
+
+int RulerHandler::decimalPrecision() const
+{
+    return m_decimalPrecision;
 }
 
 void RulerHandler::paint(QPainter *painter, QGraphicsView *view)
@@ -361,16 +374,12 @@ QString RulerHandler::formatTickLabel(double value) const
         return QStringLiteral("0");
     }
 
-    // 根据值大小选择合适的格式
+    // 根据值大小选择合适的格式，小数精度由 m_decimalPrecision 控制
     if (absValue >= 1000000) {
         return QString::number(value, 'e', 2);  // 科学计数法
     } else if (absValue >= 1000) {
         return QString::number(value, 'f', 0);
-    } else if (absValue >= 1) {
-        return QString::number(value, 'f', 1);
-    } else if (absValue >= 0.01) {
-        return QString::number(value, 'f', 2);
     } else {
-        return QString::number(value, 'f', 3);  // 更小的值显示更多小数位
+        return QString::number(value, 'f', m_decimalPrecision);
     }
 }
