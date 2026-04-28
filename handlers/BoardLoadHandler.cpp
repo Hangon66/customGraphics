@@ -353,14 +353,16 @@ void BoardLoadHandler::drawArtifacts()
 
             // 准备标签文本
             QStringList labelTexts;
-            labelTexts << artifact.artifactCode;
+            labelTexts << QStringLiteral("%1%2").arg(artifact.rack.isEmpty() ? QString() : artifact.rack, artifact.artifactCode);
             if (artifact.width > 0 && artifact.height > 0) {
                 int widthMM = qRound(artifact.width / 10.0);
                 int heightMM = qRound(artifact.height / 10.0);
                 labelTexts << QStringLiteral("%1×%2mm").arg(widthMM).arg(heightMM);
             }
             if (!artifact.rack.isEmpty()) {
-                labelTexts << QStringLiteral("架:%1").arg(artifact.rack);
+                labelTexts << QStringLiteral("%1架").arg(artifact.rack);
+            } else {
+                labelTexts << QStringLiteral("手动");
             }
 
             // 迭代缩小字体直到适合矩形
