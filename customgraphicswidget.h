@@ -2,6 +2,9 @@
 #define CUSTOMGRAPHICSWIDGET_H
 
 #include <QWidget>
+#include <QPair>
+#include "view/ShapeMetadata.h"
+#include "handlers/GuideLineHandler.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -159,6 +162,24 @@ signals:
      */
     void drawingActiveChanged(bool active);
 
+    /**
+     * @brief 图元属性数据更新信号，供外部窗口获取属性信息。
+     *
+     * 当选中图元或图元属性值变化时发出，属性数据已解析为属性名-值对列表。
+     * 外部窗口可直接遍历显示，无需了解 PropMap 内部结构。
+     *
+     * @param name 图元名称。
+     * @param properties 属性名-值对列表，每项包含属性显示名和值的字符串表示。
+     */
+    void itemPropertiesChanged(const QString &name, const QList<QPair<QString, QString>> &properties);
+
+    /**
+     * @brief 属性数据清空信号，供外部窗口清除显示。
+     *
+     * 当取消选中或无图元选中时发出。
+     */
+    void propertiesCleared();
+
 protected:
     /**
      * @brief 重写按键事件，支持快捷键切换模式。
@@ -196,6 +217,22 @@ private slots:
      */
     void onPropertyChanged(QGraphicsItem *item, const QString &key, const QVariant &value);
 
+    /**
+     * @brief 图元属性更新时解析 PropMap 并转发给外部窗口。
+     *
+     * @param name 图元名称。
+     * @param props 图元属性表。
+     */
+    void onItemPropertiesUpdated(const QString &name, const PropMap &props);
+
+    /**
+     * @brief 辅助线属性更新时解析并转发给外部窗口。
+     *
+     * @param type 辅助线方向。
+     * @param position 辅助线位置。
+     */
+    void onGuideLinePropertiesUpdated(GuideLine::Type type, qreal position);
+
 private:
     /**
      * @brief 初始化石材切割场景。
@@ -221,6 +258,16 @@ private:
      * @brief 更新模式状态显示。
      */
     void updateModeDisplay();
+
+    /**
+     * @brief 根据属性类型格式化属性值为字符串，控制浮点精度。
+     *
+     * Number 类型保留 1 位小数，其他类型直接 toString()。
+     *
+     * @param field 属性字段。
+     * @return 格式化后的字符串。
+     */
+    static QString formatPropValue(const PropField &field);
 
     /**
      * @brief Qt Designer 生成的 UI 对象指针。

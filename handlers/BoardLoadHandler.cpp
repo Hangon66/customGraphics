@@ -332,7 +332,7 @@ void BoardLoadHandler::drawArtifacts()
         rectItem->setData(ShapeMeta::Id, ShapeMeta::nextId());
         rectItem->setData(ShapeMeta::Category, QStringLiteral("Artifact"));
         rectItem->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
-        rectItem->setData(ShapeMeta::Name, artifact.artifactCode);
+        rectItem->setData(ShapeMeta::Name, QStringLiteral("%1%2").arg(artifact.rack.isEmpty() ? QString() : artifact.rack, artifact.artifactCode));
         rectItem->setData(ShapeMeta::Props, QVariant::fromValue(props));
 
         m_scene->addItem(rectItem);

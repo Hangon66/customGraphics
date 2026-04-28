@@ -99,6 +99,32 @@ signals:
      */
     void guideLinePropertyChanged(qreal position);
 
+    /**
+     * @brief 图元属性数据更新信号，供外部窗口获取属性信息。
+     *
+     * 当选中图元或图元属性值变化时发出，携带图元名称和完整属性表。
+     * 外部窗口可连接此信号实现纯显示，无需编辑功能。
+     *
+     * @param name 图元名称。
+     * @param props 图元属性表。
+     */
+    void itemPropertiesUpdated(const QString &name, const PropMap &props);
+
+    /**
+     * @brief 辅助线属性数据更新信号，供外部窗口获取属性信息。
+     *
+     * @param type 辅助线方向。
+     * @param position 辅助线位置。
+     */
+    void guideLinePropertiesUpdated(GuideLine::Type type, qreal position);
+
+    /**
+     * @brief 属性清空信号，供外部窗口清除显示。
+     *
+     * 当取消选中或无图元选中时发出。
+     */
+    void propertiesCleared();
+
 private slots:
     /**
      * @brief 名称编辑完成时的处理槽。

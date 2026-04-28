@@ -20,6 +20,7 @@
 #include <QPen>
 #include <QBrush>
 #include <QDebug>
+#include <QSet>
 #include <QPushButton>
 #include <QLabel>
 #include <QPainter>
@@ -478,6 +479,18 @@ void CustomGraphicsWidget::connectHandlers()
                 }
             });
         }
+
+        // 连接属性面板的属性数据更新信号，解析 PropMap 为属性名-值对列表后转发给外部
+        connect(m_propertyPanel, &PropertyPanel::itemPropertiesUpdated,
+                this, &CustomGraphicsWidget::onItemPropertiesUpdated);
+
+        // 连接属性面板的属性清空信号
+        connect(m_propertyPanel, &PropertyPanel::propertiesCleared,
+                this, &CustomGraphicsWidget::propertiesCleared);
+
+        // 连接属性面板的辅助线属性更新信号，解析后转发给外部
+        connect(m_propertyPanel, &PropertyPanel::guideLinePropertiesUpdated,
+                this, &CustomGraphicsWidget::onGuideLinePropertiesUpdated);
     }
 
     // 连接缩略图信号（m_minimapWidget 已在构造函数中提前创建）
@@ -614,4 +627,49 @@ void CustomGraphicsWidget::onPropertyChanged(QGraphicsItem *item, const QString 
     if (needRefreshPanel && m_propertyPanel) {
         m_propertyPanel->updateFromItem(item);
     }
+}
+
+void CustomGraphicsWidget::onItemPropertiesUpdated(const QString &name, const PropMap &props)
+{
+    QList<QPair<QString, QString>> properties;
+
+    // 按面板显示顺序解析属性
+    static const QStringList preferredOrder = {
+        "typeName", "x", "y", "length", "height", "width"
+    };
+    QSet<QString> visited;
+    for (const QString &key : preferredOrder) {
+        if (props.contains(key) && props[key].isVisible()) {
+            properties.append(qMakePair(props[key].displayName(), formatPropValue(props[key])));
+            visited.insert(key);
+        }
+    }
+    for (auto it = props.constBegin(); it != props.constEnd(); ++it) {
+        if (!visited.contains(it.key()) && it.value().isVisible()) {
+            properties.append(qMakePair(it.value().displayName(), formatPropValue(it.value())));
+        }
+    }
+
+    emit itemPropertiesChanged(name, properties);
+}
+
+QString CustomGraphicsWidget::formatPropValue(const PropField &field)
+{
+    if (field.propType() == PropType::Number) {
+        return QString::number(field.toDouble(), 'f', 1);
+    }
+    return field.toString();
+}
+
+void CustomGraphicsWidget::onGuideLinePropertiesUpdated(GuideLine::Type type, qreal position)
+{
+    QString name = (type == GuideLine::Horizontal)
+        ? QStringLiteral("水平辅助线") : QStringLiteral("垂直辅助线");
+
+    QList<QPair<QString, QString>> properties;
+    properties.append(qMakePair(QStringLiteral("类型:"),
+        (type == GuideLine::Horizontal) ? QStringLiteral("水平") : QStringLiteral("垂直")));
+    properties.append(qMakePair(QStringLiteral("位置:"), QString::number(position, 'f', 1)));
+
+    emit itemPropertiesChanged(name, properties);
 }

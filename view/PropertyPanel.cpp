@@ -176,6 +176,9 @@ void PropertyPanel::updateFromItem(QGraphicsItem *item)
     }
 
     m_updating = false;
+
+    // 通知外部窗口属性数据已更新
+    emit itemPropertiesUpdated(name, props);
 }
 
 void PropertyPanel::updateFromGuideLine(GuideLine::Type type, qreal position)
@@ -208,6 +211,9 @@ void PropertyPanel::updateFromGuideLine(GuideLine::Type type, qreal position)
     }
 
     m_updating = false;
+
+    // 通知外部窗口辅助线属性数据已更新
+    emit guideLinePropertiesUpdated(type, position);
 }
 
 void PropertyPanel::buildPropertyRows(const QMap<QString, PropField> &props)
@@ -346,6 +352,9 @@ void PropertyPanel::clearPanel()
     m_nameEdit->clear();
     m_nameEdit->setEnabled(true);
     clearPropertyRows();
+
+    // 通知外部窗口属性已清空
+    emit propertiesCleared();
 }
 
 void PropertyPanel::setPanelVisible(bool visible)
