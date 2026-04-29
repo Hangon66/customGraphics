@@ -9,11 +9,10 @@
 #include <QBrush>
 #include <QVector>
 #include <QHash>
-#include <QGraphicsItemGroup>
+#include <QGraphicsRectItem>
 
 class CustomGraphicsScene;
 class QGraphicsItem;
-class QGraphicsRectItem;
 class QGraphicsTextItem;
 class QUndoStack;
 
@@ -306,7 +305,7 @@ public:
      *
      * @return 当前旋转角度（角度制）；未旋转时返回0.0。
      */
-    qreal artifactRotation() const { return m_artifactGroup ? m_artifactGroup->rotation() : 0.0; }
+    qreal artifactRotation() const { return m_artifactParent ? m_artifactParent->rotation() : 0.0; }
 
     /**
      * @brief 获取当前成品亮度偏移值。
@@ -479,14 +478,9 @@ private:
     QPointF m_dragStartScenePos;
 
     /**
-     * @brief 整体拖动开始时各成品图元的初始位置。
+     * @brief 整体拖动开始时父项的初始位置（场景坐标）。
      */
-    QVector<QPointF> m_artifactStartPositions;
-
-    /**
-     * @brief 整体拖动开始时各标签图元的初始位置。
-     */
-    QVector<QPointF> m_labelStartPositions;
+    QPointF m_parentStartPos;
 
     /**
      * @brief 是否允许成品拖拽，默认关闭。
@@ -504,12 +498,13 @@ private:
     int m_artifactBrightness;
 
     /**
-     * @brief 成品整体旋转/移动的图元组，初始nullptr。
+     * @brief 成品整体旋转/移动的不可见父项，初始nullptr。
      *
-     * 首次旋转时创建，将所有成品和标签添加到组中，
-     * 便于整体旋转和移动操作。
+     * 使用普通 QGraphicsRectItem 代替 QGraphicsItemGroup，
+     * 设置 ItemHasNoContents 使其不参与命中测试，
+     * 子图元可正常选中，同时跟随父项旋转/移动变换。
      */
-    QGraphicsItemGroup *m_artifactGroup;
+    QGraphicsRectItem *m_artifactParent;
 
     /**
      * @brief 成品整体旋转中心点，首次旋转时计算并缓存。

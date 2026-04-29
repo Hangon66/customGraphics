@@ -12,6 +12,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QMouseEvent>
+#include <typeinfo>
 
 BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
     : AbstractInteractionHandler(priority, parent)
@@ -26,7 +27,7 @@ BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
     , m_artifactDragEnabled(false)
     , m_artifactOpacity(1.0)
     , m_artifactBrightness(0)
-    , m_artifactGroup(nullptr)
+    , m_artifactParent(nullptr)
     , m_artifactRotationCenter()
     , m_artifactOffsetX(0.0)
     , m_artifactOffsetY(0.0)
@@ -100,7 +101,7 @@ void BoardLoadHandler::clearBoard()
     m_artifactItems.clear();
     m_labelItems.clear();
     m_backgroundItem = nullptr;  // 已被 clear() 释放
-    m_artifactGroup = nullptr;    // 已被 clear() 释放
+    m_artifactParent = nullptr;   // 已被 clear() 释放
     m_artifactRotationCenter = QPointF();
     m_artifactOpacity = 1.0;
     m_artifactBrightness = 0;
@@ -463,10 +464,19 @@ void BoardLoadHandler::drawArtifacts()
         }
     }
 
-    // 创建成品图元组，便于整体旋转和移动操作
+    // 创建不可见父项，子图元跟随其旋转/移动变换，同时可被正常选中
     if (!m_artifactItems.isEmpty()) {
+        m_artifactParent = new QGraphicsRectItem();
+        m_artifactParent->setPen(Qt::NoPen);
+        m_artifactParent->setFlag(QGraphicsItem::ItemHasNoContents);
+        m_artifactParent->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_scene->addItem(m_artifactParent);
+
+        // 将成品和标签设为父项的子级（setParentItem 自动保持场景位置不变）
         QList<QGraphicsItem*> allItems = m_artifactItems + m_labelItems;
-        m_artifactGroup = m_scene->createItemGroup(allItems);
+        for (QGraphicsItem *item : allItems) {
+            item->setParentItem(m_artifactParent);
+        }
 
         // 计算所有成品矩形的几何中心作为旋转中心
         QRectF combined;
@@ -500,6 +510,15 @@ void BoardLoadHandler::clearArtifacts()
         delete item;
     }
     m_labelItems.clear();
+
+    // 删除不可见父项（子项已先删除，父项不再持有子项）
+    if (m_artifactParent) {
+        if (m_scene) {
+            m_scene->removeItem(m_artifactParent);
+        }
+        delete m_artifactParent;
+        m_artifactParent = nullptr;
+    }
 }
 
 QPointF BoardLoadHandler::mapBoardToScene(const QPointF &boardPoint) const
@@ -552,58 +571,68 @@ QPolygonF BoardLoadHandler::mapBoardPolygonToScene(const QVector<vPoint2D> &vert
 
 bool BoardLoadHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
 {
-    if (!isEnabled() || !m_artifactDragEnabled || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
+    if (!isEnabled() || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
         return false;
     }
 
     // 获取鼠标位置下的图元
-    QGraphicsItem *item = view->itemAt(event->pos());
+    // 父项设置了 ItemHasNoContents，items() 不会返回父项，子图元可被直接识别
+    QPointF scenePos = view->mapToScene(event->pos());
+    QGraphicsItem *item = nullptr;
+    bool isArtifact = false;
+    bool isLabel = false;
+    const QList<QGraphicsItem*> itemsAtPos = m_scene->items(scenePos);
+    for (QGraphicsItem *candidate : itemsAtPos) {
+        bool artifact = (candidate->data(ShapeMeta::Category).toString() == QStringLiteral("Artifact"));
+        bool label = (candidate->data(1).toString() == QStringLiteral("label") ||
+                     candidate->data(1).toString() == QStringLiteral("sizeLabel") ||
+                     candidate->data(1).toString() == QStringLiteral("rackLabel"));
+        if (artifact || label) {
+            item = candidate;
+            isArtifact = artifact;
+            isLabel = label;
+            break;
+        }
+    }
+    qDebug() << "[BoardLoadHandler] handleMousePress: item=" << item
+             << "isArtifact=" << isArtifact << "isLabel=" << isLabel
+             << "artifactDragEnabled=" << m_artifactDragEnabled;
     if (!item) {
         return false;
     }
 
-    // 判断是否为成品矩形或标签
-    bool isArtifact = (item->data(ShapeMeta::Category).toString() == QStringLiteral("Artifact"));
-    bool isLabel = (item->data(1).toString() == QStringLiteral("label") ||
-                   item->data(1).toString() == QStringLiteral("sizeLabel") ||
-                   item->data(1).toString() == QStringLiteral("rackLabel"));
-
-    if (!isArtifact && !isLabel) {
-        return false;
-    }
-
-    // 手动选中对应的成品矩形图元，触发 PropertyPanel 更新
+    // 选中对应的成品矩形图元，触发 PropertyPanel 更新（不依赖拖动开关）
     if (m_scene) {
         qint64 artifactId = item->data(ShapeMeta::Props).value<PropMap>().value("artifactId").toInt();
+        qDebug() << "[BoardLoadHandler] handleMousePress: artifactId=" << artifactId;
         m_scene->clearSelection();
         if (isArtifact) {
             item->setSelected(true);
+            qDebug() << "[BoardLoadHandler] handleMousePress: artifact selected=" << item->isSelected();
         } else {
             // 点击标签时，选中对应的成品矩形
             for (QGraphicsItem *artifactItem : m_artifactItems) {
                 qint64 id = artifactItem->data(ShapeMeta::Props).value<PropMap>().value("artifactId").toInt();
                 if (id == artifactId) {
                     artifactItem->setSelected(true);
+                    qDebug() << "[BoardLoadHandler] handleMousePress: label->artifact selected=" << artifactItem->isSelected();
                     break;
                 }
             }
         }
     }
 
+    // 拖动模式仅在有拖动开关时进入
+    if (!m_artifactDragEnabled) {
+        return false;
+    }
+
     // 进入整体拖动模式
     m_isGroupDragging = true;
     m_dragStartScenePos = view->mapToScene(event->pos());
 
-    // 记录所有成品和标签的初始位置
-    m_artifactStartPositions.clear();
-    for (QGraphicsItem *artifactItem : m_artifactItems) {
-        m_artifactStartPositions.append(artifactItem->pos());
-    }
-
-    m_labelStartPositions.clear();
-    for (QGraphicsItem *labelItem : m_labelItems) {
-        m_labelStartPositions.append(labelItem->pos());
-    }
+    // 记录父项的初始位置，拖动时整体移动父项即可
+    m_parentStartPos = m_artifactParent ? m_artifactParent->pos() : QPointF();
 
     return true;
 }
@@ -623,14 +652,13 @@ bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
         QRectF boundary = m_scene->boundaryConstraint();
 
         // 计算所有成品图元移动后的总包围盒
+        // 使用 sceneBoundingRect 正确处理旋转后的碰撞体积
+        QPointF proposedParentPos = m_parentStartPos + delta;
+        QPointF moveDelta = proposedParentPos - (m_artifactParent ? m_artifactParent->pos() : QPointF());
         QRectF combinedRect;
-        for (int i = 0; i < m_artifactItems.size() && i < m_artifactStartPositions.size(); ++i) {
-            QGraphicsRectItem *rectItem = dynamic_cast<QGraphicsRectItem*>(m_artifactItems[i]);
-            if (rectItem) {
-                QPointF newPos = m_artifactStartPositions[i] + delta;
-                QRectF itemRect = rectItem->rect().translated(newPos);
-                combinedRect = combinedRect.isNull() ? itemRect : combinedRect.united(itemRect);
-            }
+        for (QGraphicsItem *item : m_artifactItems) {
+            QRectF sceneRect = item->sceneBoundingRect().translated(moveDelta);
+            combinedRect = combinedRect.isNull() ? sceneRect : combinedRect.united(sceneRect);
         }
 
         // 限制偏移量，使包围盒不超出边界
@@ -650,14 +678,9 @@ bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
         }
     }
 
-    // 同步移动所有成品图元
-    for (int i = 0; i < m_artifactItems.size() && i < m_artifactStartPositions.size(); ++i) {
-        m_artifactItems[i]->setPos(m_artifactStartPositions[i] + delta);
-    }
-
-    // 同步移动所有标签图元
-    for (int i = 0; i < m_labelItems.size() && i < m_labelStartPositions.size(); ++i) {
-        m_labelItems[i]->setPos(m_labelStartPositions[i] + delta);
+    // 移动父项，所有子图元（成品+标签）自动跟随
+    if (m_artifactParent) {
+        m_artifactParent->setPos(m_parentStartPos + delta);
     }
 
     // 通知属性面板实时刷新选中成品的坐标
@@ -679,8 +702,6 @@ bool BoardLoadHandler::handleMouseRelease(QGraphicsView *view, QMouseEvent *even
 
     // 结束整体拖动
     m_isGroupDragging = false;
-    m_artifactStartPositions.clear();
-    m_labelStartPositions.clear();
 
     Q_UNUSED(view)
     Q_UNUSED(event)
@@ -705,57 +726,33 @@ void BoardLoadHandler::moveArtifacts(qreal dx, qreal dy)
     if (m_scene && m_scene->hasBoundaryConstraint()) {
         QRectF boundary = m_scene->boundaryConstraint();
 
-        if (m_artifactGroup) {
-            // group 模式：逐个计算成品矩形的 sceneBoundingRect（已含旋转变换），取并集
-            QRectF combinedRect;
-            for (QGraphicsItem *item : m_artifactItems) {
-                QRectF sceneRect = item->sceneBoundingRect().translated(dx, dy);
-                combinedRect = combinedRect.isNull() ? sceneRect : combinedRect.united(sceneRect);
+        // 使用 sceneBoundingRect 正确处理旋转后的碰撞体积
+        QRectF combinedRect;
+        for (QGraphicsItem *item : m_artifactItems) {
+            QRectF sceneRect = item->sceneBoundingRect().translated(dx, dy);
+            combinedRect = combinedRect.isNull() ? sceneRect : combinedRect.united(sceneRect);
+        }
+        if (!combinedRect.isNull()) {
+            if (combinedRect.left() < boundary.left()) {
+                dx += (boundary.left() - combinedRect.left());
             }
-            if (!combinedRect.isNull()) {
-                if (combinedRect.left() < boundary.left()) {
-                    dx += (boundary.left() - combinedRect.left());
-                }
-                if (combinedRect.right() > boundary.right()) {
-                    dx -= (combinedRect.right() - boundary.right());
-                }
-                if (combinedRect.top() < boundary.top()) {
-                    dy += (boundary.top() - combinedRect.top());
-                }
-                if (combinedRect.bottom() > boundary.bottom()) {
-                    dy -= (combinedRect.bottom() - boundary.bottom());
-                }
+            if (combinedRect.right() > boundary.right()) {
+                dx -= (combinedRect.right() - boundary.right());
             }
-        } else {
-            // 非分组模式：逐个计算成品矩形的总包围盒
-            QRectF combinedRect;
-            for (QGraphicsItem *item : m_artifactItems) {
-                QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
-                if (rect) {
-                    QRectF itemRect = rect->rect().translated(rect->pos() + QPointF(dx, dy));
-                    combinedRect = combinedRect.isNull() ? itemRect : combinedRect.united(itemRect);
-                }
+            if (combinedRect.top() < boundary.top()) {
+                dy += (boundary.top() - combinedRect.top());
             }
-            if (!combinedRect.isNull()) {
-                if (combinedRect.left() < boundary.left()) {
-                    dx += (boundary.left() - combinedRect.left());
-                }
-                if (combinedRect.right() > boundary.right()) {
-                    dx -= (combinedRect.right() - boundary.right());
-                }
-                if (combinedRect.top() < boundary.top()) {
-                    dy += (boundary.top() - combinedRect.top());
-                }
-                if (combinedRect.bottom() > boundary.bottom()) {
-                    dy -= (combinedRect.bottom() - boundary.bottom());
-                }
+            if (combinedRect.bottom() > boundary.bottom()) {
+                dy -= (combinedRect.bottom() - boundary.bottom());
             }
         }
     }
 
-    if (m_artifactGroup) {
-        m_artifactGroup->moveBy(dx, dy);
+    // 移动父项，所有子图元（成品+标签）自动跟随
+    if (m_artifactParent) {
+        m_artifactParent->moveBy(dx, dy);
     } else {
+        // 无父项时逐个移动
         for (QGraphicsItem *item : m_artifactItems) {
             item->moveBy(dx, dy);
         }
@@ -771,10 +768,10 @@ void BoardLoadHandler::moveArtifacts(qreal dx, qreal dy)
 
 void BoardLoadHandler::rotateArtifacts(qreal angleDelta)
 {
-    if (m_artifactItems.isEmpty() || !m_artifactGroup) return;
+    if (m_artifactItems.isEmpty() || !m_artifactParent) return;
 
-    m_artifactGroup->setTransformOriginPoint(m_artifactRotationCenter);
-    m_artifactGroup->setRotation(m_artifactGroup->rotation() + angleDelta);
+    m_artifactParent->setTransformOriginPoint(m_artifactRotationCenter);
+    m_artifactParent->setRotation(m_artifactParent->rotation() + angleDelta);
 
     // 旋转后边界约束：逐个检查成品矩形的 sceneBoundingRect（不含标签），与移动操作一致
     if (m_scene && m_scene->hasBoundaryConstraint()) {
@@ -790,7 +787,7 @@ void BoardLoadHandler::rotateArtifacts(qreal angleDelta)
             combinedRect.top() < boundary.top() ||
             combinedRect.bottom() > boundary.bottom()) {
             // 超出边界，回退旋转
-            m_artifactGroup->setRotation(m_artifactGroup->rotation() - angleDelta);
+            m_artifactParent->setRotation(m_artifactParent->rotation() - angleDelta);
         }
     }
 }
