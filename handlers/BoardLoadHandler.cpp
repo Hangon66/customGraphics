@@ -28,6 +28,8 @@ BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
     , m_artifactBrightness(0)
     , m_artifactGroup(nullptr)
     , m_artifactRotationCenter()
+    , m_artifactOffsetX(0.0)
+    , m_artifactOffsetY(0.0)
 {
     // 默认成品样式
     m_artifactPen = QPen(Qt::red, 2);
@@ -99,6 +101,11 @@ void BoardLoadHandler::clearBoard()
     m_labelItems.clear();
     m_backgroundItem = nullptr;  // 已被 clear() 释放
     m_artifactGroup = nullptr;    // 已被 clear() 释放
+    m_artifactRotationCenter = QPointF();
+    m_artifactOpacity = 1.0;
+    m_artifactBrightness = 0;
+    m_artifactOffsetX = 0.0;
+    m_artifactOffsetY = 0.0;
 
     m_backgroundPixmap = QPixmap();
     m_boardData = BoardData();
@@ -455,6 +462,23 @@ void BoardLoadHandler::drawArtifacts()
             }
         }
     }
+
+    // 创建成品图元组，便于整体旋转和移动操作
+    if (!m_artifactItems.isEmpty()) {
+        QList<QGraphicsItem*> allItems = m_artifactItems + m_labelItems;
+        m_artifactGroup = m_scene->createItemGroup(allItems);
+
+        // 计算所有成品矩形的几何中心作为旋转中心
+        QRectF combined;
+        for (QGraphicsItem *item : m_artifactItems) {
+            QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
+            if (rect) {
+                QRectF sceneRect = rect->sceneBoundingRect();
+                combined = combined.isNull() ? sceneRect : combined.united(sceneRect);
+            }
+        }
+        m_artifactRotationCenter = combined.center();
+    }
 }
 
 void BoardLoadHandler::clearArtifacts()
@@ -739,41 +763,32 @@ void BoardLoadHandler::moveArtifacts(qreal dx, qreal dy)
             item->moveBy(dx, dy);
         }
     }
+
+    // 累计偏移量（边界约束后实际生效的 dx/dy）
+    m_artifactOffsetX += dx;
+    m_artifactOffsetY += dy;
 }
 
 void BoardLoadHandler::rotateArtifacts(qreal angleDelta)
 {
-    if (m_artifactItems.isEmpty()) return;
-
-    // 首次旋转时，将所有成品和标签添加到图元组，并缓存旋转中心
-    if (!m_artifactGroup) {
-        QList<QGraphicsItem*> allItems = m_artifactItems + m_labelItems;
-        m_artifactGroup = m_scene->createItemGroup(allItems);
-
-        // 计算所有成品矩形的几何中心作为旋转中心（仅计算一次）
-        QRectF combined;
-        for (QGraphicsItem *item : m_artifactItems) {
-            QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
-            if (rect) {
-                QRectF sceneRect = rect->sceneBoundingRect();
-                combined = combined.isNull() ? sceneRect : combined.united(sceneRect);
-            }
-        }
-        m_artifactRotationCenter = combined.center();
-    }
+    if (m_artifactItems.isEmpty() || !m_artifactGroup) return;
 
     m_artifactGroup->setTransformOriginPoint(m_artifactRotationCenter);
     m_artifactGroup->setRotation(m_artifactGroup->rotation() + angleDelta);
 
-    // 旋转后边界约束：检查 group 的 sceneBoundingRect 是否超出边界，若超出则回退旋转
+    // 旋转后边界约束：逐个检查成品矩形的 sceneBoundingRect（不含标签），与移动操作一致
     if (m_scene && m_scene->hasBoundaryConstraint()) {
         QRectF boundary = m_scene->boundaryConstraint();
-        QRectF groupRect = m_artifactGroup->sceneBoundingRect();
+        QRectF combinedRect;
+        for (QGraphicsItem *item : m_artifactItems) {
+            QRectF sceneRect = item->sceneBoundingRect();
+            combinedRect = combinedRect.isNull() ? sceneRect : combinedRect.united(sceneRect);
+        }
 
-        if (groupRect.left() < boundary.left() ||
-            groupRect.right() > boundary.right() ||
-            groupRect.top() < boundary.top() ||
-            groupRect.bottom() > boundary.bottom()) {
+        if (combinedRect.left() < boundary.left() ||
+            combinedRect.right() > boundary.right() ||
+            combinedRect.top() < boundary.top() ||
+            combinedRect.bottom() > boundary.bottom()) {
             // 超出边界，回退旋转
             m_artifactGroup->setRotation(m_artifactGroup->rotation() - angleDelta);
         }
@@ -822,5 +837,30 @@ void BoardLoadHandler::adjustArtifactsBrightness(int delta)
         if (rect) {
             rect->setBrush(QBrush(adjustedColor));
         }
+    }
+}
+
+void BoardLoadHandler::setArtifactOffset(qreal x, qreal y)
+{
+    qreal dx = x - m_artifactOffsetX;
+    qreal dy = y - m_artifactOffsetY;
+    if (!qFuzzyIsNull(dx) || !qFuzzyIsNull(dy)) {
+        moveArtifacts(dx, dy);
+    }
+}
+
+void BoardLoadHandler::setArtifactRotation(qreal angle)
+{
+    qreal delta = angle - artifactRotation();
+    if (!qFuzzyIsNull(delta)) {
+        rotateArtifacts(delta);
+    }
+}
+
+void BoardLoadHandler::setArtifactBrightness(int value)
+{
+    int delta = value - m_artifactBrightness;
+    if (delta != 0) {
+        adjustArtifactsBrightness(delta);
     }
 }

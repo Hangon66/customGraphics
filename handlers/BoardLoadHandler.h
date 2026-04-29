@@ -265,11 +265,69 @@ public:
     void adjustArtifactsBrightness(int delta);
 
     /**
+     * @brief 设置成品偏移到指定绝对位置（场景坐标）。
+     *
+     * 计算与当前偏移量的差值，调用 moveArtifacts 完成实际移动，
+     * 含边界约束。设置后 artifactOffsetX/Y 将更新为目标值（或约束后的值）。
+     *
+     * @param x 目标X偏移量。
+     * @param y 目标Y偏移量。
+     */
+    void setArtifactOffset(qreal x, qreal y);
+
+    /**
+     * @brief 设置成品旋转到指定绝对角度（角度制）。
+     *
+     * 计算与当前旋转角度的差值，调用 rotateArtifacts 完成实际旋转，
+     * 含边界约束。设置后 artifactRotation 将更新为目标值（或约束后的值）。
+     *
+     * @param angle 目标旋转角度（角度制）。
+     */
+    void setArtifactRotation(qreal angle);
+
+    /**
+     * @brief 设置成品亮度到指定绝对值。
+     *
+     * 计算与当前亮度偏移的差值，调用 adjustArtifactsBrightness 完成实际调整。
+     *
+     * @param value 目标亮度偏移值。
+     */
+    void setArtifactBrightness(int value);
+
+    /**
      * @brief 获取当前成品透明度。
      *
      * @return 当前透明度值，范围 0.0~1.0。
      */
     qreal artifactOpacity() const { return m_artifactOpacity; }
+
+    /**
+     * @brief 获取当前成品旋转角度。
+     *
+     * @return 当前旋转角度（角度制）；未旋转时返回0.0。
+     */
+    qreal artifactRotation() const { return m_artifactGroup ? m_artifactGroup->rotation() : 0.0; }
+
+    /**
+     * @brief 获取当前成品亮度偏移值。
+     *
+     * @return 当前亮度偏移量；未调整时返回0。
+     */
+    int artifactBrightness() const { return m_artifactBrightness; }
+
+    /**
+     * @brief 获取当前成品X方向偏移量（场景坐标）。
+     *
+     * @return X偏移量；未移动时返回0.0。
+     */
+    qreal artifactOffsetX() const { return m_artifactOffsetX; }
+
+    /**
+     * @brief 获取当前成品Y方向偏移量（场景坐标）。
+     *
+     * @return Y偏移量；未移动时返回0.0。
+     */
+    qreal artifactOffsetY() const { return m_artifactOffsetY; }
 
     /**
      * @brief 检查是否已加载大板数据。
@@ -459,6 +517,16 @@ private:
      * 固定不变，避免多次旋转后因 boundingRect 变化导致中心偏移。
      */
     QPointF m_artifactRotationCenter;
+
+    /**
+     * @brief 成品X方向累计偏移量（场景坐标），初始0.0。
+     */
+    qreal m_artifactOffsetX;
+
+    /**
+     * @brief 成品Y方向累计偏移量（场景坐标），初始0.0。
+     */
+    qreal m_artifactOffsetY;
 };
 
 #endif // BOARDLOADHANDLER_H
