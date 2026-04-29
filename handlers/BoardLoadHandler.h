@@ -9,6 +9,7 @@
 #include <QBrush>
 #include <QVector>
 #include <QHash>
+#include <QGraphicsItemGroup>
 
 class CustomGraphicsScene;
 class QGraphicsItem;
@@ -127,6 +128,22 @@ public:
     void setView(QGraphicsView *view);
 
     /**
+     * @brief 设置是否允许成品拖拽。
+     *
+     * 默认关闭，开启后用户可拖拽成品图元整体移动。
+     *
+     * @param enabled true 允许拖拽；false 禁止拖拽。
+     */
+    void setArtifactDragEnabled(bool enabled);
+
+    /**
+     * @brief 获取是否允许成品拖拽。
+     *
+     * @return true 允许拖拽；false 禁止拖拽。
+     */
+    bool isArtifactDragEnabled() const;
+
+    /**
      * @brief 获取关联的场景。
      *
      * @return 关联的QGraphicsScene实例；未设置则返回nullptr。
@@ -210,6 +227,49 @@ public:
      * @return 背景图片的尺寸；无背景时返回QSizeF()。
      */
     QSizeF boardSize() const;
+
+    /**
+     * @brief 移动所有成品和标签图元。
+     *
+     * 如果已创建整体旋转图元组，则对组整体移动；否则逐个移动。
+     *
+     * @param dx 水平偏移量（正值向右，负值向左）。
+     * @param dy 垂直偏移量（正值向下，负值向上）。
+     */
+    void moveArtifacts(qreal dx, qreal dy);
+
+    /**
+     * @brief 将所有成品作为整体旋转。
+     *
+     * 首次旋转时创建 QGraphicsItemGroup，后续在同一个 group 上累积旋转角度。
+     * 旋转中心为所有成品矩形的几何中心。
+     *
+     * @param angleDelta 旋转角度增量（角度制，正值顺时针，负值逆时针）。
+     */
+    void rotateArtifacts(qreal angleDelta);
+
+    /**
+     * @brief 设置所有成品的透明度。
+     *
+     * @param opacity 透明度值，范围 0.0（全透明）~1.0（不透明）。
+     */
+    void setArtifactsOpacity(qreal opacity);
+
+    /**
+     * @brief 调整所有成品填充色的亮度。
+     *
+     * 通过修改 HSV 颜色模型中的 Value 分量来调整亮度。
+     *
+     * @param delta 亮度增量（正值增亮，负值减暗）。
+     */
+    void adjustArtifactsBrightness(int delta);
+
+    /**
+     * @brief 获取当前成品透明度。
+     *
+     * @return 当前透明度值，范围 0.0~1.0。
+     */
+    qreal artifactOpacity() const { return m_artifactOpacity; }
 
     /**
      * @brief 检查是否已加载大板数据。
@@ -369,6 +429,36 @@ private:
      * @brief 整体拖动开始时各标签图元的初始位置。
      */
     QVector<QPointF> m_labelStartPositions;
+
+    /**
+     * @brief 是否允许成品拖拽，默认关闭。
+     */
+    bool m_artifactDragEnabled;
+
+    /**
+     * @brief 当前成品透明度，初始1.0（不透明）。
+     */
+    qreal m_artifactOpacity;
+
+    /**
+     * @brief 当前成品亮度偏移（HSV Value 增量），初始0表示未修改。
+     */
+    int m_artifactBrightness;
+
+    /**
+     * @brief 成品整体旋转/移动的图元组，初始nullptr。
+     *
+     * 首次旋转时创建，将所有成品和标签添加到组中，
+     * 便于整体旋转和移动操作。
+     */
+    QGraphicsItemGroup *m_artifactGroup;
+
+    /**
+     * @brief 成品整体旋转中心点，首次旋转时计算并缓存。
+     *
+     * 固定不变，避免多次旋转后因 boundingRect 变化导致中心偏移。
+     */
+    QPointF m_artifactRotationCenter;
 };
 
 #endif // BOARDLOADHANDLER_H

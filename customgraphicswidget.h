@@ -248,6 +248,7 @@ private slots:
     void onGuideLinePropertiesUpdated(GuideLine::Type type, qreal position);
 
 private:
+    void initUI();
     /**
      * @brief 初始化石材切割场景。
      */

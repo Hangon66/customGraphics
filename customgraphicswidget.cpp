@@ -48,8 +48,7 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     ui->setupUi(this);
     m_propertyPanel = new PropertyPanel(this);
     m_minimapWidget = new MinimapWidget(this);
-    initStoneCuttingScene();
-    initToolBar();
+    initUI();
 }
 
 CustomGraphicsWidget::~CustomGraphicsWidget()
@@ -120,13 +119,13 @@ bool CustomGraphicsWidget::isToolBarVisible() const
 void CustomGraphicsWidget::setPropertyPanelVisible(bool visible)
 {
     if (m_propertyPanel) {
-        m_propertyPanel->setPanelVisible(visible);
+        m_propertyPanel->setVisible(visible);
     }
 }
 
 bool CustomGraphicsWidget::isPropertyPanelVisible() const
 {
-    return m_propertyPanel ? m_propertyPanel->isPanelVisible() : false;
+    return m_propertyPanel ? m_propertyPanel->isVisible() : false;
 }
 
 void CustomGraphicsWidget::initStoneCuttingScene()
@@ -376,6 +375,7 @@ void CustomGraphicsWidget::addTestItems()
     cutArea2->setData(ShapeMeta::Props, QVariant::fromValue(props2));
     cutArea2->setLabelText("切割区域_2");
     m_scene->addItem(cutArea2);
+
 }
 
 void CustomGraphicsWidget::connectHandlers()
@@ -684,4 +684,11 @@ void CustomGraphicsWidget::onGuideLinePropertiesUpdated(GuideLine::Type type, qr
     properties.append(qMakePair(QStringLiteral("位置:"), QString::number(position, 'f', 1)));
 
     emit itemPropertiesChanged(name, properties);
+}
+
+void CustomGraphicsWidget::initUI()
+{
+    initStoneCuttingScene();
+    initToolBar();
+    setPropertyPanelVisible(false);
 }

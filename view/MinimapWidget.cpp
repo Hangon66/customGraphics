@@ -1,7 +1,6 @@
 #include "MinimapWidget.h"
 #include "CustomGraphicsView.h"
 #include "CustomGraphicsScene.h"
-#include "../handlers/RulerHandler.h"
 
 #include <QPainter>
 #include <QPaintEvent>
@@ -125,24 +124,8 @@ void MinimapWidget::paintEvent(QPaintEvent *event)
     // 渲染场景缩略图
     m_view->scene()->render(&painter, targetRect, sourceRect);
 
-    // 绘制视口矩形（扣除标尺遮挡区域）
-    QRect viewportRect = m_view->viewport()->rect();
-
-    // 获取标尺宽度，从视口矩形中扣除标尺遮挡部分
-    RulerHandler *ruler = m_view->findHandler<RulerHandler>();
-    int rulerW = (ruler ? ruler->rulerWidth() : 0);
-    bool hasLeftRuler = ruler && (ruler->rulerPosition() == RulerHandler::RulerPosition::Left ||
-                                  ruler->rulerPosition() == RulerHandler::RulerPosition::Both);
-    bool hasBottomRuler = ruler && (ruler->rulerPosition() == RulerHandler::RulerPosition::Bottom ||
-                                    ruler->rulerPosition() == RulerHandler::RulerPosition::Both);
-
-    int leftOffset = hasLeftRuler ? rulerW : 0;
-    int bottomOffset = hasBottomRuler ? rulerW : 0;
-    QRectF effectiveViewportRect(leftOffset, 0,
-                                  viewportRect.width() - leftOffset,
-                                  viewportRect.height() - bottomOffset);
-
-    QRectF viewportSceneRect = m_view->mapToScene(effectiveViewportRect.toRect()).boundingRect();
+    // 绘制视口矩形
+    QRectF viewportSceneRect = m_view->mapToScene(m_view->viewport()->rect()).boundingRect();
 
     // 将视口矩形映射到缩略图坐标
     double vpLeft = offsetX + (viewportSceneRect.left() - sourceRect.left()) * scale;

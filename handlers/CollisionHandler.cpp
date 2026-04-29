@@ -149,7 +149,7 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
         }
 
         // 有边距时，检查点是否在障碍物扩展区域内
-        QRectF itemRect = item->boundingRect().translated(item->pos());
+        QRectF itemRect = item->sceneBoundingRect();
         QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
         if (expandedRect.contains(point)) {
             return item;
@@ -172,7 +172,7 @@ QGraphicsItem* CollisionHandler::pointInAnyItem(QGraphicsScene *scene, const QPo
                 continue;
             }
 
-            QRectF itemRect = item->boundingRect().translated(item->pos());
+            QRectF itemRect = item->sceneBoundingRect();
             QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
             if (expandedRect.contains(point)) {
                 return item;
@@ -216,7 +216,7 @@ QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene,
         }
 
         // 有边距时，检查点是否在障碍物扩展区域内
-        QRectF itemRect = item->boundingRect().translated(item->pos());
+        QRectF itemRect = item->sceneBoundingRect();
         QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
         if (expandedRect.contains(point)) {
             return item;
@@ -242,7 +242,7 @@ QGraphicsItem* CollisionHandler::pointInAnyItemWithConfig(QGraphicsScene *scene,
                 continue;
             }
 
-            QRectF itemRect = item->boundingRect().translated(item->pos());
+            QRectF itemRect = item->sceneBoundingRect();
             QRectF expandedRect = itemRect.adjusted(-margin, -margin, margin, margin);
             if (expandedRect.contains(point)) {
                 return item;
@@ -293,7 +293,7 @@ QGraphicsItem* CollisionHandler::rectOverlapsAnyItem(QGraphicsScene *scene, cons
         // 使用 intersects 区分边界接触和真正重叠
         // QRectF::intersects 在边界接触时返回 false，只有真正重叠才返回 true
         // 如果有边距，障碍物边界向四周扩展
-        QRectF itemRect = item->boundingRect().translated(item->pos());
+        QRectF itemRect = item->sceneBoundingRect();
         if (!qFuzzyIsNull(margin)) {
             itemRect = itemRect.adjusted(-margin, -margin, margin, margin);
         }
@@ -389,8 +389,8 @@ QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QP
         return currentPos;
     }
 
-    QRectF itemRect = item->boundingRect();
-    QRectF targetRect = itemRect.translated(targetPos);
+    QRectF currentSceneRect = item->sceneBoundingRect();
+    QRectF targetRect = currentSceneRect.translated(delta);
 
     QPointF blockedPos = targetPos;
 
@@ -403,7 +403,7 @@ QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QP
             continue;
         }
 
-        QRectF obstacleRect = obstacle->boundingRect().translated(obstacle->pos());
+        QRectF obstacleRect = obstacle->sceneBoundingRect();
         // 有边距时扩展障碍物区域
         if (!qFuzzyIsNull(margin)) {
             obstacleRect = obstacleRect.adjusted(-margin, -margin, margin, margin);
@@ -411,11 +411,11 @@ QPointF CollisionHandler::calculateBlockedPosition(QGraphicsItem *item, const QP
 
         // 如果目标位置与障碍物重叠，计算阻挡位置
         if (targetRect.intersects(obstacleRect)) {
-            blockedPos = calculateRectBlockPosition(itemRect.translated(currentPos),
+            blockedPos = calculateRectBlockPosition(currentSceneRect,
                                                      targetRect, obstacleRect, margin);
 
             // 更新目标矩形，用于后续障碍物检测
-            targetRect = itemRect.translated(blockedPos);
+            targetRect = currentSceneRect.translated(blockedPos - currentPos);
 
             // 如果仍然重叠，保持当前位置
             if (targetRect.intersects(obstacleRect)) {

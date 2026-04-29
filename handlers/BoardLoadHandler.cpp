@@ -23,6 +23,11 @@ BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
     , m_fitLeftMargin(0)
     , m_fitBottomMargin(0)
     , m_isGroupDragging(false)
+    , m_artifactDragEnabled(false)
+    , m_artifactOpacity(1.0)
+    , m_artifactBrightness(0)
+    , m_artifactGroup(nullptr)
+    , m_artifactRotationCenter()
 {
     // 默认成品样式
     m_artifactPen = QPen(Qt::red, 2);
@@ -93,6 +98,7 @@ void BoardLoadHandler::clearBoard()
     m_artifactItems.clear();
     m_labelItems.clear();
     m_backgroundItem = nullptr;  // 已被 clear() 释放
+    m_artifactGroup = nullptr;    // 已被 clear() 释放
 
     m_backgroundPixmap = QPixmap();
     m_boardData = BoardData();
@@ -316,19 +322,19 @@ void BoardLoadHandler::drawArtifacts()
 
         // 设置属性表，供 PropertyPanel 显示
         PropMap props;
-        props["artifactCode"] = PropField(artifact.artifactCode, QStringLiteral("片名:"), PropType::Text, true, false);
-        props["drawingMetaCode"] = PropField(artifact.drawingMetaCode, QStringLiteral("区域名:"), PropType::Text, true, false);
+        props["artifactCode"] = PropField(artifact.artifactCode, QStringLiteral("片名:"), PropType::Text, false, false);
+        props["drawingMetaCode"] = PropField(artifact.drawingMetaCode, QStringLiteral("区域:"), PropType::Text, true, false);
         int widthMM = qRound(artifact.width / 10.0);
         int heightMM = qRound(artifact.height / 10.0);
         props["width"] = PropField(widthMM, QStringLiteral("宽度(mm):"), PropType::Number, true, false);
         props["height"] = PropField(heightMM, QStringLiteral("高度(mm):"), PropType::Number, true, false);
-        props["square"] = PropField(artifact.square, QStringLiteral("面积(m²):"), PropType::Number, true, false);
+        props["square"] = PropField(artifact.square, QStringLiteral("面积(m²):"), PropType::Number, false, false);
         props["rack"] = PropField(artifact.rack.isEmpty() ? QStringLiteral("手动") : artifact.rack,
-                                   QStringLiteral("架号:"), PropType::Text, true, false);
-        props["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, true, false);
+                                   QStringLiteral("架号:"), PropType::Text, false, false);
+        props["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, false, false);
         // 预置几何属性为可见不可编辑，refreshGeometryProps 会自动更新值
-        props["x"] = PropField(0.0, QStringLiteral("X:"), PropType::Number, true, false);
-        props["y"] = PropField(0.0, QStringLiteral("Y:"), PropType::Number, true, false);
+        props["x"] = PropField(0.0, QStringLiteral("X:"), PropType::Number, false, false);
+        props["y"] = PropField(0.0, QStringLiteral("Y:"), PropType::Number, false, false);
         rectItem->setData(ShapeMeta::Id, ShapeMeta::nextId());
         rectItem->setData(ShapeMeta::Category, QStringLiteral("Artifact"));
         rectItem->setData(ShapeMeta::ShapeType, ShapeMeta::Rect);
@@ -503,10 +509,10 @@ QPointF BoardLoadHandler::mapBoardToScene(const QPointF &boardPoint) const
     qreal sceneX = mmX * scaleX;
     qreal sceneY = sceneHeight - (mmY * scaleY);  // Y轴翻转
 
-    qDebug() << "[BoardLoadHandler] 坐标映射:" 
-             << "原始(0.1mm)=" << boardPoint 
-             << "毫米=" << QPointF(mmX, mmY)
-             << "场景=" << QPointF(sceneX, sceneY);
+    // qDebug() << "[BoardLoadHandler] 坐标映射:" 
+    //          << "原始(0.1mm)=" << boardPoint 
+    //          << "毫米=" << QPointF(mmX, mmY)
+    //          << "场景=" << QPointF(sceneX, sceneY);
 
     return QPointF(sceneX, sceneY);
 }
@@ -522,7 +528,7 @@ QPolygonF BoardLoadHandler::mapBoardPolygonToScene(const QVector<vPoint2D> &vert
 
 bool BoardLoadHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
 {
-    if (!isEnabled() || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
+    if (!isEnabled() || !m_artifactDragEnabled || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
         return false;
     }
 
@@ -655,4 +661,166 @@ bool BoardLoadHandler::handleMouseRelease(QGraphicsView *view, QMouseEvent *even
     Q_UNUSED(view)
     Q_UNUSED(event)
     return true;
+}
+
+void BoardLoadHandler::setArtifactDragEnabled(bool enabled)
+{
+    m_artifactDragEnabled = enabled;
+}
+
+bool BoardLoadHandler::isArtifactDragEnabled() const
+{
+    return m_artifactDragEnabled;
+}
+
+void BoardLoadHandler::moveArtifacts(qreal dx, qreal dy)
+{
+    if (m_artifactItems.isEmpty()) return;
+
+    // 应用边界约束：确保成品图元不超出石板区域
+    if (m_scene && m_scene->hasBoundaryConstraint()) {
+        QRectF boundary = m_scene->boundaryConstraint();
+
+        if (m_artifactGroup) {
+            // group 模式：逐个计算成品矩形的 sceneBoundingRect（已含旋转变换），取并集
+            QRectF combinedRect;
+            for (QGraphicsItem *item : m_artifactItems) {
+                QRectF sceneRect = item->sceneBoundingRect().translated(dx, dy);
+                combinedRect = combinedRect.isNull() ? sceneRect : combinedRect.united(sceneRect);
+            }
+            if (!combinedRect.isNull()) {
+                if (combinedRect.left() < boundary.left()) {
+                    dx += (boundary.left() - combinedRect.left());
+                }
+                if (combinedRect.right() > boundary.right()) {
+                    dx -= (combinedRect.right() - boundary.right());
+                }
+                if (combinedRect.top() < boundary.top()) {
+                    dy += (boundary.top() - combinedRect.top());
+                }
+                if (combinedRect.bottom() > boundary.bottom()) {
+                    dy -= (combinedRect.bottom() - boundary.bottom());
+                }
+            }
+        } else {
+            // 非分组模式：逐个计算成品矩形的总包围盒
+            QRectF combinedRect;
+            for (QGraphicsItem *item : m_artifactItems) {
+                QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
+                if (rect) {
+                    QRectF itemRect = rect->rect().translated(rect->pos() + QPointF(dx, dy));
+                    combinedRect = combinedRect.isNull() ? itemRect : combinedRect.united(itemRect);
+                }
+            }
+            if (!combinedRect.isNull()) {
+                if (combinedRect.left() < boundary.left()) {
+                    dx += (boundary.left() - combinedRect.left());
+                }
+                if (combinedRect.right() > boundary.right()) {
+                    dx -= (combinedRect.right() - boundary.right());
+                }
+                if (combinedRect.top() < boundary.top()) {
+                    dy += (boundary.top() - combinedRect.top());
+                }
+                if (combinedRect.bottom() > boundary.bottom()) {
+                    dy -= (combinedRect.bottom() - boundary.bottom());
+                }
+            }
+        }
+    }
+
+    if (m_artifactGroup) {
+        m_artifactGroup->moveBy(dx, dy);
+    } else {
+        for (QGraphicsItem *item : m_artifactItems) {
+            item->moveBy(dx, dy);
+        }
+        for (QGraphicsItem *item : m_labelItems) {
+            item->moveBy(dx, dy);
+        }
+    }
+}
+
+void BoardLoadHandler::rotateArtifacts(qreal angleDelta)
+{
+    if (m_artifactItems.isEmpty()) return;
+
+    // 首次旋转时，将所有成品和标签添加到图元组，并缓存旋转中心
+    if (!m_artifactGroup) {
+        QList<QGraphicsItem*> allItems = m_artifactItems + m_labelItems;
+        m_artifactGroup = m_scene->createItemGroup(allItems);
+
+        // 计算所有成品矩形的几何中心作为旋转中心（仅计算一次）
+        QRectF combined;
+        for (QGraphicsItem *item : m_artifactItems) {
+            QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
+            if (rect) {
+                QRectF sceneRect = rect->sceneBoundingRect();
+                combined = combined.isNull() ? sceneRect : combined.united(sceneRect);
+            }
+        }
+        m_artifactRotationCenter = combined.center();
+    }
+
+    m_artifactGroup->setTransformOriginPoint(m_artifactRotationCenter);
+    m_artifactGroup->setRotation(m_artifactGroup->rotation() + angleDelta);
+
+    // 旋转后边界约束：检查 group 的 sceneBoundingRect 是否超出边界，若超出则回退旋转
+    if (m_scene && m_scene->hasBoundaryConstraint()) {
+        QRectF boundary = m_scene->boundaryConstraint();
+        QRectF groupRect = m_artifactGroup->sceneBoundingRect();
+
+        if (groupRect.left() < boundary.left() ||
+            groupRect.right() > boundary.right() ||
+            groupRect.top() < boundary.top() ||
+            groupRect.bottom() > boundary.bottom()) {
+            // 超出边界，回退旋转
+            m_artifactGroup->setRotation(m_artifactGroup->rotation() - angleDelta);
+        }
+    }
+}
+
+void BoardLoadHandler::setArtifactsOpacity(qreal opacity)
+{
+    if (m_artifactItems.isEmpty()) return;
+
+    // 限制范围 [0.1, 1.0]
+    opacity = qBound(0.1, opacity, 1.0);
+    m_artifactOpacity = opacity;
+
+    for (QGraphicsItem *item : m_artifactItems) {
+        item->setOpacity(opacity);
+    }
+    for (QGraphicsItem *item : m_labelItems) {
+        item->setOpacity(opacity);
+    }
+}
+
+void BoardLoadHandler::adjustArtifactsBrightness(int delta)
+{
+    if (m_artifactItems.isEmpty()) return;
+
+    // 累计亮度偏移
+    m_artifactBrightness += delta;
+
+    // 取原始画刷颜色，调整 HSV Value 分量
+    QColor baseColor = m_artifactBrush.color();
+    if (!baseColor.isValid()) return;
+
+    int h = baseColor.hue();
+    int s = baseColor.saturation();
+    int v = baseColor.value() + m_artifactBrightness;
+    v = qBound(0, v, 255);
+    int a = baseColor.alpha();
+
+    QColor adjustedColor;
+    adjustedColor.setHsv(h, s, v, a);
+
+    // 更新所有成品矩形填充色
+    for (QGraphicsItem *item : m_artifactItems) {
+        QGraphicsRectItem *rect = dynamic_cast<QGraphicsRectItem*>(item);
+        if (rect) {
+            rect->setBrush(QBrush(adjustedColor));
+        }
+    }
 }
