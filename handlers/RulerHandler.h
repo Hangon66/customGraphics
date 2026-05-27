@@ -9,6 +9,16 @@ class QGraphicsScene;
 class QGraphicsView;
 
 /**
+ * @brief Y轴方向枚举
+ *
+ * 定义标尺Y轴的显示方向。
+ */
+enum class RulerYAxisDirection {
+    Normal,   ///< 标准显示：Y值向下增大（上负下正）
+    Inverted  ///< 翻转显示：Y值向上增大（上正下负）
+};
+
+/**
  * @brief 精度标尺处理器。
  *
  * 在视图边缘绘制刻度标尺，显示当前场景坐标和缩放比例。
@@ -182,6 +192,24 @@ public:
     int decimalPrecision() const;
 
     /**
+     * @brief 设置Y轴显示方向
+     *
+     * 配置标尺Y轴的显示方向，用于适配不同业务的坐标系需求。
+     * - Normal: 标准显示（Y值向下增大，上负下正）
+     * - Inverted: 翻转显示（Y值向上增大，上正下负）
+     *
+     * @param direction Y轴方向，默认为 Normal。
+     */
+    void setYAxisDirection(RulerYAxisDirection direction);
+
+    /**
+     * @brief 获取当前Y轴显示方向
+     *
+     * @return 当前Y轴方向设置。
+     */
+    RulerYAxisDirection yAxisDirection() const;
+
+    /**
      * @brief 绘制标尺。
      *
      * 通常由视图的绘制事件自动调用。
@@ -275,6 +303,14 @@ private:
      * 控制 formatTickLabel 输出的小数位数，默认 0。
      */
     int m_decimalPrecision;
+
+    /**
+     * @brief Y轴显示方向配置
+     *
+     * 默认为 Normal（标准显示）。
+     * 石材切割等业务可设置为 Inverted 以适配"上正下负"显示。
+     */
+    RulerYAxisDirection m_yAxisDirection = RulerYAxisDirection::Normal;
 };
 
 #endif // RULERHANDLER_H

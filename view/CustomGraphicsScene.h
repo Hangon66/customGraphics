@@ -11,6 +11,16 @@
 class QGraphicsItem;
 
 /**
+ * @brief Y轴方向枚举
+ *
+ * 定义场景Y轴的方向，用于适配不同业务的坐标系需求。
+ */
+enum class YAxisDirection {
+    Normal,   ///< 标准Qt坐标系：Y=0在顶部，Y值向下增大（上负下正）
+    Inverted  ///< 翻转Y轴：Y=0在顶部，Y值向上增大（上正下负）
+};
+
+/**
  * @brief 自定义图形场景类，提供 2D 图形编辑器的公共场景基础设施。
  *
  * 继承自 QGraphicsScene，封装了网格背景绘制、场景默认配置等通用功能。
@@ -228,6 +238,36 @@ public:
     // ========== 背景图片 ==========
 
     /**
+     * @brief 设置Y轴方向
+     *
+     * 配置场景的Y轴方向，用于适配不同业务的坐标系需求。
+     * - Normal: 标准Qt坐标系（Y=0在顶部，向下为正）
+     * - Inverted: 翻转Y轴（Y=0在顶部，向上为正）
+     *
+     * 此设置会影响背景图片绘制位置和边界约束的计算。
+     *
+     * @param direction Y轴方向，默认为 Normal。
+     */
+    void setYAxisDirection(YAxisDirection direction);
+
+    /**
+     * @brief 获取当前Y轴方向
+     *
+     * @return 当前Y轴方向设置。
+     */
+    YAxisDirection yAxisDirection() const;
+
+    /**
+     * @brief 设置默认场景矩形。
+     *
+     * 当清除背景图片时，场景将恢复到此矩形尺寸。
+     * 应在场景初始化后、加载背景前调用。
+     *
+     * @param rect 默认场景矩形（场景坐标）。
+     */
+    void setDefaultSceneRect(const QRectF &rect);
+
+    /**
      * @brief 设置背景图片。
      *
      * 图片将作为场景背景绘制，并自动设置边界约束为图片大小。
@@ -297,6 +337,16 @@ signals:
      * @param boundary 新的边界约束矩形；空矩形表示无约束。
      */
     void boundaryConstraintChanged(const QRectF &boundary);
+
+    /**
+     * @brief Y轴方向改变信号
+     *
+     * 当场景的Y轴方向配置改变时发出此信号。
+     * 外部组件（如标尺）可连接此信号以同步自身的显示方向。
+     *
+     * @param direction 新的Y轴方向。
+     */
+    void yAxisDirectionChanged(YAxisDirection direction);
 
 protected:
     /**
@@ -480,6 +530,19 @@ private:
      * 作为场景背景绘制，同时自动设置边界约束。
      */
     QPixmap m_backgroundPixmap;
+
+    /**
+     * @brief 默认场景矩形，清除背景时恢复此尺寸。
+     */
+    QRectF m_defaultSceneRect;
+
+    /**
+     * @brief Y轴方向配置
+     *
+     * 默认为 Normal（标准Qt坐标系）。
+     * 石材切割等业务可设置为 Inverted 以适配"上正下负"坐标系。
+     */
+    YAxisDirection m_yAxisDirection = YAxisDirection::Normal;
 };
 
 #endif // CUSTOMGRAPHICSSCENE_H

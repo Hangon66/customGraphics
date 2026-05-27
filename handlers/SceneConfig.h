@@ -126,6 +126,24 @@ struct SceneConfig
      */
     double mmToSceneScale = 1.0;
 
+    // ========== 场景尺寸配置 ==========
+
+    /**
+     * @brief 场景默认宽度，单位：毫米。
+     *
+     * 当未加载背景图片时，场景的初始宽度。
+     * 1mm = 1场景像素（由 mmToSceneScale 决定）。默认 4500mm（4.5m）。
+     */
+    double sceneWidthMM = 4500.0;
+
+    /**
+     * @brief 场景默认高度，单位：毫米。
+     *
+     * 当未加载背景图片时，场景的初始高度。
+     * 1mm = 1场景像素（由 mmToSceneScale 决定）。默认 3500mm（3.5m）。
+     */
+    double sceneHeightMM = 3500.0;
+
     // ========== Handler 工厂 ==========
 
     /**

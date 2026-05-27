@@ -12,6 +12,12 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QMouseEvent>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QEventLoop>
+#include <QImageReader>
+#include <QBuffer>
 #include <typeinfo>
 
 BoardLoadHandler::BoardLoadHandler(int priority, QObject *parent)
@@ -80,6 +86,11 @@ void BoardLoadHandler::setBoardData(const BoardData &data)
 
     qDebug() << "[BoardLoadHandler] m_boardSizeMM 设置完成:" << m_boardSizeMM;
 
+    // 设置场景Y轴方向为翻转（上正下负坐标系）
+    if (m_scene) {
+        m_scene->setYAxisDirection(YAxisDirection::Inverted);
+    }
+
     // 加载背景图片
     loadBackground();
 
@@ -116,6 +127,8 @@ void BoardLoadHandler::clearBoard()
     if (m_scene) {
         m_scene->clearIndexes();
         m_scene->clearBackgroundPixmap();
+        // 恢复默认Y轴方向
+        m_scene->setYAxisDirection(YAxisDirection::Normal);
     }
 
     emit boardCleared();
@@ -190,8 +203,9 @@ void BoardLoadHandler::fitViewToBoard(QGraphicsView *view)
         return;
     }
 
-    // 石板实际区域（原点左上角）
-    QRectF boardRect(0, 0, m_backgroundPixmap.width(), m_backgroundPixmap.height());
+    // 石板实际区域（Y轴取反映射：板材在Y的负值区域）
+    // 左上角：(0, -height)，右下角：(width, 0)
+    QRectF boardRect(0, -m_backgroundPixmap.height(), m_backgroundPixmap.width(), m_backgroundPixmap.height());
     if (boardRect.isEmpty()) {
         return;
     }
@@ -244,24 +258,86 @@ void BoardLoadHandler::loadBackground()
         return;
     }
 
-    // 构建图片的完整路径（相对于程序运行目录）
+    // 构建图片的完整 URL（网络图片，前缀为 https://img.stonechain.net）
     QString imagePath = m_boardData.imageUrl;
-    QString fullPath;
+    QPixmap origPixmap;
 
-    // 如果已经是绝对路径，直接使用
-    if (QDir::isAbsolutePath(imagePath)) {
-        fullPath = imagePath;
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+        // 已经是完整 URL，直接使用
+        QUrl imageUrl(imagePath);
+        QNetworkAccessManager manager;
+        QNetworkRequest request(imageUrl);
+        QNetworkReply *reply = manager.get(request);
+        QEventLoop loop;
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+
+        if (reply->error() == QNetworkReply::NoError) {
+            // 使用 QImageReader 缩放到板材尺寸，避免高清大图超过内存限制
+            QByteArray imageData = reply->readAll();
+            QBuffer buffer(&imageData);
+            buffer.open(QIODevice::ReadOnly);
+            QImageReader reader(&buffer);
+            reader.setAllocationLimit(1024);
+            // 解码时直接缩放到板材尺寸（1px=1mm），大幅降低内存占用
+            QSize boardSize(qRound(m_boardSizeMM.width()), qRound(m_boardSizeMM.height()));
+            if (boardSize.isValid()) {
+                reader.setScaledSize(boardSize);
+            }
+            QImage img = reader.read();
+            if (!img.isNull()) {
+                origPixmap = QPixmap::fromImage(img);
+                qDebug() << "[BoardLoadHandler] 图片已缩放到板材尺寸:" << origPixmap.size();
+            } else {
+                qWarning() << "图片解码失败:" << reader.errorString();
+            }
+        } else {
+            qWarning() << "网络图片加载失败:" << reply->errorString() << "URL:" << imageUrl;
+        }
+        reply->deleteLater();
     } else {
-        // 相对于程序运行目录构建完整路径
-        QString appDir = QCoreApplication::applicationDirPath();
-        fullPath = QDir(appDir).filePath(imagePath);
+        // 相对路径，拼接网络前缀
+        QString baseUrl = "https://img.stonechain.net/";
+        if (imagePath.startsWith('/')) {
+            imagePath = imagePath.mid(1);
+        }
+        QUrl imageUrl(baseUrl + imagePath);
+
+        qDebug() << "[BoardLoadHandler] 加载网络图片:" << imageUrl.toString();
+
+        QNetworkAccessManager manager;
+        QNetworkRequest request(imageUrl);
+        QNetworkReply *reply = manager.get(request);
+        QEventLoop loop;
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+
+        if (reply->error() == QNetworkReply::NoError) {
+            // 使用 QImageReader 缩放到板材尺寸，避免高清大图超过内存限制
+            QByteArray imageData = reply->readAll();
+            QBuffer buffer(&imageData);
+            buffer.open(QIODevice::ReadOnly);
+            QImageReader reader(&buffer);
+            reader.setAllocationLimit(1024);
+            QSize boardSize(qRound(m_boardSizeMM.width()), qRound(m_boardSizeMM.height()));
+            if (boardSize.isValid()) {
+                reader.setScaledSize(boardSize);
+            }
+            QImage img = reader.read();
+            if (!img.isNull()) {
+                origPixmap = QPixmap::fromImage(img);
+                qDebug() << "[BoardLoadHandler] 图片已缩放到板材尺寸:" << origPixmap.size();
+            } else {
+                qWarning() << "图片解码失败:" << reader.errorString();
+            }
+        } else {
+            qWarning() << "网络图片加载失败:" << reply->errorString() << "URL:" << imageUrl;
+        }
+        reply->deleteLater();
     }
 
-    // 加载图片（原图，竖向）
-    QPixmap origPixmap(fullPath);
-
     if (origPixmap.isNull()) {
-        qWarning() << "无法加载图片:" << fullPath << "（原始路径:" << imagePath << "），使用板子实际尺寸创建背景";
+        qWarning() << "无法加载网络图片:" << imagePath << "，使用板子实际尺寸创建背景";
         
         // 使用板子的实际尺寸创建背景（旋转后的横向尺寸）
         int boardWidth = qMax(1, qRound(m_boardSizeMM.width()));    // 2827
@@ -292,6 +368,9 @@ void BoardLoadHandler::loadBackground()
     // 使用CustomGraphicsScene的背景功能
     if (m_scene) {
         m_scene->setBackgroundPixmap(m_backgroundPixmap);
+        qDebug() << "[BoardLoadHandler] loadBackground 完成"
+                 << "背景图尺寸:" << m_backgroundPixmap.size()
+                 << "设置后sceneRect:" << m_scene->sceneRect();
     }
 }
 
@@ -336,9 +415,9 @@ void BoardLoadHandler::drawArtifacts()
         int heightMM = qRound(artifact.height / 10.0);
         props["width"] = PropField(widthMM, QStringLiteral("宽度(mm):"), PropType::Number, true, false);
         props["height"] = PropField(heightMM, QStringLiteral("高度(mm):"), PropType::Number, true, false);
-        props["square"] = PropField(artifact.square, QStringLiteral("面积(m²):"), PropType::Number, false, false);
+        props["square"] = PropField(artifact.square, QStringLiteral("面积:"), PropType::Number, true, false);
         props["rack"] = PropField(artifact.rack.isEmpty() ? QStringLiteral("手动") : artifact.rack,
-                                   QStringLiteral("架号:"), PropType::Text, false, false);
+                                   QStringLiteral("架号:"), PropType::Text, true, false);
         props["artifactId"] = PropField(artifact.id, QStringLiteral("成品ID:"), PropType::Int, false, false);
         // 预置几何属性为可见不可编辑，refreshGeometryProps 会自动更新值
         props["x"] = PropField(0.0, QStringLiteral("X:"), PropType::Number, false, false);
@@ -547,10 +626,12 @@ QPointF BoardLoadHandler::mapBoardToScene(const QPointF &boardPoint) const
     qreal scaleX = sceneWidth / m_boardSizeMM.width();   // 2827 / 2827 = 1
     qreal scaleY = sceneHeight / m_boardSizeMM.height(); // 1931 / 1931 = 1
 
-    // 场景坐标
-    // 注意：需要Y轴翻转，因为切割坐标系的Y方向与Qt场景Y方向相反
+    // 场景坐标（Y轴取反映射）
+    // Qt坐标系：上负下正（Y=0在顶部，Y值向下增大）
+    // JSON坐标系：上正下负（Y值向上增大）
+    // 通过取反使JSON的Y正值映射到场景Y负值（显示在上方）
     qreal sceneX = mmX * scaleX;
-    qreal sceneY = sceneHeight - (mmY * scaleY);  // Y轴翻转
+    qreal sceneY = -(mmY * scaleY);  // Y轴取反映射：JSON正值→场景负值→显示在上方
 
     // qDebug() << "[BoardLoadHandler] 坐标映射:" 
     //          << "原始(0.1mm)=" << boardPoint 
@@ -635,6 +716,30 @@ bool BoardLoadHandler::handleMousePress(QGraphicsView *view, QMouseEvent *event)
     m_parentStartPos = m_artifactParent ? m_artifactParent->pos() : QPointF();
 
     return true;
+}
+
+bool BoardLoadHandler::handleMouseDoubleClick(QGraphicsView *view, QMouseEvent *event)
+{
+    if (!isEnabled() || m_artifactItems.isEmpty() || event->button() != Qt::LeftButton) {
+        return false;
+    }
+
+    QPointF scenePos = view->mapToScene(event->pos());
+    const QList<QGraphicsItem*> itemsAtPos = m_scene->items(scenePos);
+    for (QGraphicsItem *item : itemsAtPos) {
+        bool isArtifact = (item->data(ShapeMeta::Category).toString() == QStringLiteral("Artifact"));
+        bool isLabel = (item->data(1).toString() == QStringLiteral("label") ||
+                       item->data(1).toString() == QStringLiteral("sizeLabel") ||
+                       item->data(1).toString() == QStringLiteral("rackLabel"));
+        if (isArtifact || isLabel) {
+            qint64 artifactId = item->data(ShapeMeta::Props).value<PropMap>().value("artifactId").toInt();
+            QString artifactCode = item->data(ShapeMeta::Props).value<PropMap>().value("code").toString();
+            qDebug() << "[BoardLoadHandler] artifactDoubleClicked: id=" << artifactId << "code=" << artifactCode;
+            emit artifactDoubleClicked(artifactId, artifactCode);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool BoardLoadHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)

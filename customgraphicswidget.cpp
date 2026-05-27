@@ -136,6 +136,11 @@ void CustomGraphicsWidget::initStoneCuttingScene()
     // 创建场景
     m_scene = new CustomGraphicsScene(this);
 
+    // 设置场景默认尺寸（来自配置，1mm=1px）
+    QRectF defaultRect(0, 0, config.sceneWidthMM, config.sceneHeightMM);
+    m_scene->setSceneRect(defaultRect);
+    m_scene->setDefaultSceneRect(defaultRect);
+
     // 配置碰撞检测：仅启用矩形间碰撞，边距和缩放因子从场景配置读取
     CollisionConfig collisionConfig;
     collisionConfig.enableRectOnlyCollision();
@@ -188,6 +193,19 @@ void CustomGraphicsWidget::initStoneCuttingScene()
     connect(m_view->undoStack(), &QUndoStack::canRedoChanged,
             this, &CustomGraphicsWidget::updateUndoRedoState);
 
+    // 监听场景Y轴方向改变，同步设置标尺方向
+    connect(m_scene, &CustomGraphicsScene::yAxisDirectionChanged,
+            this, [this](YAxisDirection direction) {
+        if (m_rulerHandler) {
+            // 将场景的Y轴方向映射到标尺的Y轴方向
+            if (direction == YAxisDirection::Inverted) {
+                m_rulerHandler->setYAxisDirection(RulerYAxisDirection::Inverted);
+            } else {
+                m_rulerHandler->setYAxisDirection(RulerYAxisDirection::Normal);
+            }
+        }
+    });
+
     // 连接信号槽
     connectHandlers();
 
@@ -196,7 +214,9 @@ void CustomGraphicsWidget::initStoneCuttingScene()
 
     qDebug() << "石材切割场景初始化完成:"
              << "标尺精度=" << config.rulerUnitPixel << "px/"
-             << config.rulerUnitName;
+             << config.rulerUnitName
+             << "配置场景尺寸=" << config.sceneWidthMM << "x" << config.sceneHeightMM << "mm"
+             << "实际sceneRect=" << m_scene->sceneRect();
 }
 
 void CustomGraphicsWidget::initToolBar()
@@ -647,7 +667,7 @@ void CustomGraphicsWidget::onItemPropertiesUpdated(const QString &name, const Pr
 
     // 按面板显示顺序解析属性
     static const QStringList preferredOrder = {
-        "typeName", "x", "y", "length", "height", "width"
+        "name", "drawingMetaCode", "rack", "width", "height", "square"
     };
     QSet<QString> visited;
     for (const QString &key : preferredOrder) {

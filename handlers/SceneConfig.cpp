@@ -35,6 +35,10 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
     config.collisionMarginMM = 3.1;      // 碰撞边距3mm
     config.mmToSceneScale = 1.0;         // 1场景坐标=1mm
 
+    // 场景尺寸 - 4.5m x 3.5m
+    config.sceneWidthMM = 4500.0;
+    config.sceneHeightMM = 3500.0;
+
     // Handler 工厂
     config.createHandlers = [config]() -> QList<IInteractionHandler*> {
         QList<IInteractionHandler*> handlers;
@@ -77,6 +81,10 @@ SceneConfig SceneConfigFactory::createFloorPlanConfig()
     // 碰撞配置 - 楼层场景无边距
     config.collisionMarginMM = 0.0;      // 无碰撞边距
     config.mmToSceneScale = 1.0;
+
+    // 场景尺寸 - 默认4.5m x 3.5m
+    config.sceneWidthMM = 4500.0;
+    config.sceneHeightMM = 3500.0;
 
     // Handler 工厂
     config.createHandlers = [config]() -> QList<IInteractionHandler*> {

@@ -133,6 +133,19 @@ int RulerHandler::decimalPrecision() const
     return m_decimalPrecision;
 }
 
+void RulerHandler::setYAxisDirection(RulerYAxisDirection direction)
+{
+    if (m_yAxisDirection != direction) {
+        m_yAxisDirection = direction;
+        refresh();
+    }
+}
+
+RulerYAxisDirection RulerHandler::yAxisDirection() const
+{
+    return m_yAxisDirection;
+}
+
 void RulerHandler::paint(QPainter *painter, QGraphicsView *view)
 {
     if (!m_visible || !view) {
@@ -239,21 +252,21 @@ void RulerHandler::paintHorizontalRuler(QPainter *painter, QGraphicsView *view, 
         double epsilon = qMax(1e-9, qAbs(ratio) * 1e-9);
         bool isMajor = qAbs(ratio - ratioInt) < epsilon;
 
-        int tickHeight = isMajor ? rect.height() - 4 : rect.height() / 2;
+        int tickHeight = isMajor ? rect.height() * 0.55 : rect.height() * 0.3;
 
         if (isAtBottom) {
             // 底部标尺：刻度从顶边向下延伸
             painter->drawLine(viewX, rect.top(), viewX, rect.top() + tickHeight);
             if (isMajor) {
                 QString label = formatTickLabel(unit);
-                painter->drawText(viewX + 2, rect.top() + tickHeight - 2, label);
+                painter->drawText(viewX + 3, rect.bottom() - 3, label);
             }
         } else {
             // 顶部标尺：刻度从底边向上延伸
             painter->drawLine(viewX, rect.bottom(), viewX, rect.bottom() - tickHeight);
             if (isMajor) {
                 QString label = formatTickLabel(unit);
-                painter->drawText(viewX + 2, rect.bottom() - tickHeight + 10, label);
+                painter->drawText(viewX + 3, rect.top() + 10, label);
             }
         }
     }
@@ -282,9 +295,17 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
         tickInterval = 0.001;
     }
 
-    // 起始刻度值
-    double startUnit = qFloor(visibleRect.top() / m_unitPixel / tickInterval) * tickInterval;
-    double endUnit = qCeil(visibleRect.bottom() / m_unitPixel / tickInterval) * tickInterval;
+    // 根据Y轴方向计算刻度范围
+    double startUnit, endUnit;
+    if (m_yAxisDirection == RulerYAxisDirection::Inverted) {
+        // 翻转Y轴：场景Y值取负后计算刻度（上正下负）
+        startUnit = qFloor(-visibleRect.bottom() / m_unitPixel / tickInterval) * tickInterval;
+        endUnit = qCeil(-visibleRect.top() / m_unitPixel / tickInterval) * tickInterval;
+    } else {
+        // 标准显示：直接使用场景Y值（上负下正）
+        startUnit = qFloor(visibleRect.top() / m_unitPixel / tickInterval) * tickInterval;
+        endUnit = qCeil(visibleRect.bottom() / m_unitPixel / tickInterval) * tickInterval;
+    }
 
     painter->setPen(m_tickColor);
 
@@ -299,7 +320,15 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
     for (double unit = startUnit; unit <= endUnit && tickCount < maxTicks; unit += step) {
         tickCount++;
 
-        double sceneY = unit * m_unitPixel;
+        // 根据Y轴方向映射刻度值到场景坐标
+        double sceneY;
+        if (m_yAxisDirection == RulerYAxisDirection::Inverted) {
+            // 翻转Y轴：刻度值取负映射回场景坐标
+            sceneY = -unit * m_unitPixel;
+        } else {
+            // 标准显示：刻度值直接映射到场景坐标
+            sceneY = unit * m_unitPixel;
+        }
         int viewY = view->mapFromScene(QPointF(0, sceneY)).y();
 
         if (viewY < rect.top() || viewY > rect.bottom()) {
@@ -314,7 +343,7 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
         double epsilon = qMax(1e-9, qAbs(ratioY) * 1e-9);
         bool isMajor = qAbs(ratioY - ratioIntY) < epsilon;
 
-        int tickWidth = isMajor ? rect.width() - 4 : rect.width() / 2;
+        int tickWidth = isMajor ? rect.width() * 0.55 : rect.width() * 0.3;
 
         painter->drawLine(rect.right(), viewY, rect.right() - tickWidth, viewY);
 
@@ -322,7 +351,7 @@ void RulerHandler::paintVerticalRuler(QPainter *painter, QGraphicsView *view, co
         if (isMajor) {
             QString label = formatTickLabel(unit);
             painter->save();
-            painter->translate(rect.right() - tickWidth + 10, viewY - 2);
+            painter->translate(rect.left() + 10, viewY - 2);
             painter->rotate(-90);
             painter->drawText(0, 0, label);
             painter->restore();
