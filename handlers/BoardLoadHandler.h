@@ -106,6 +106,15 @@ public:
     bool handleMouseRelease(QGraphicsView *view, QMouseEvent *event) override;
 
     /**
+     * @brief 处理鼠标双击事件，检测成品双击并发射 artifactDoubleClicked 信号。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标双击事件对象。
+     * @return true 表示事件已被消费；false 表示未处理。
+     */
+    bool handleMouseDoubleClick(QGraphicsView *view, QMouseEvent *event) override;
+
+    /**
      * @brief 清除所有大板数据。
      *
      * 移除场景中的背景图片和所有成品图元。
@@ -356,6 +365,14 @@ signals:
      * @param artifactCode 成品编号。
      */
     void artifactSelected(qint64 artifactId, const QString &artifactCode);
+
+    /**
+     * @brief 成品被双击信号。
+     *
+     * @param artifactId 成品ID。
+     * @param artifactCode 成品编号。
+     */
+    void artifactDoubleClicked(qint64 artifactId, const QString &artifactCode);
 
 private:
     /**

@@ -6,6 +6,7 @@
 #include "DrawHandler.h"
 #include "DragDropHandler.h"
 #include "RubberBandHandler.h"
+#include "SimulationHandler.h"
 
 SceneConfig SceneConfigFactory::createStoneCuttingConfig()
 {
@@ -48,6 +49,7 @@ SceneConfig SceneConfigFactory::createStoneCuttingConfig()
         handlers << new RulerHandler(config.rulerUnitPixel, config.rulerUnitName);
         handlers << new DrawHandler(DrawHandler::DrawMode::Active, true, config.defaultNamePrefix);
         handlers << new RubberBandHandler(10);  // 框选优先级最低
+        handlers << new SimulationHandler();     // 刀路模拟（不拦截交互事件）
         return handlers;
     };
 

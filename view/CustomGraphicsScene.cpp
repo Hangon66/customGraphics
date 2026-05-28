@@ -197,20 +197,7 @@ void CustomGraphicsScene::setYAxisDirection(YAxisDirection direction)
 {
     if (m_yAxisDirection != direction) {
         m_yAxisDirection = direction;
-        // 重新计算边界约束和重绘背景
-        if (!m_backgroundPixmap.isNull()) {
-            // 根据新的Y轴方向重新设置边界约束
-            QRectF pixmapRect;
-            if (direction == YAxisDirection::Inverted) {
-                pixmapRect = QRectF(0, -m_backgroundPixmap.height(), 
-                                   m_backgroundPixmap.width(), m_backgroundPixmap.height());
-            } else {
-                pixmapRect = QRectF(0, 0, 
-                                   m_backgroundPixmap.width(), m_backgroundPixmap.height());
-            }
-            m_boundaryConstraint = pixmapRect;
-            emit boundaryConstraintChanged(pixmapRect);
-        }
+        // 不再自动重新设置边界约束，由业务类根据新的Y轴方向显式设置
         // 发出Y轴方向改变信号
         emit yAxisDirectionChanged(direction);
         // 触发背景重绘
@@ -228,6 +215,11 @@ void CustomGraphicsScene::setDefaultSceneRect(const QRectF &rect)
     m_defaultSceneRect = rect;
 }
 
+QRectF CustomGraphicsScene::defaultSceneRect() const
+{
+    return m_defaultSceneRect;
+}
+
 void CustomGraphicsScene::setBackgroundPixmap(const QPixmap &pixmap)
 {
     qDebug() << "[Scene] setBackgroundPixmap 调用"
@@ -236,35 +228,8 @@ void CustomGraphicsScene::setBackgroundPixmap(const QPixmap &pixmap)
 
     m_backgroundPixmap = pixmap;
 
-    if (!pixmap.isNull()) {
-        // 根据Y轴方向设置边界约束
-        QRectF pixmapRect;
-        if (m_yAxisDirection == YAxisDirection::Inverted) {
-            // Y轴翻转：背景绘制在Y的负值区域（0上方）
-            pixmapRect = QRectF(0, -pixmap.height(), pixmap.width(), pixmap.height());
-        } else {
-            // 标准Qt坐标系：背景绘制在Y的正值区域（0下方）
-            pixmapRect = QRectF(0, 0, pixmap.width(), pixmap.height());
-        }
-        m_boundaryConstraint = pixmapRect;
-        emit boundaryConstraintChanged(pixmapRect);
-        // 场景大小保持足够大，允许视图拖拽到空白区域
-        // 设置一个足够大的场景区域，以背景图片为中心
-        qreal margin = 5000;  // 边距，允许拖拽的范围
-        setSceneRect(-margin, -margin,
-                     pixmap.width() + margin * 2,
-                     pixmap.height() + margin * 2);
-        qDebug() << "[Scene] 有背景图片，场景扩大为:"
-                 << sceneRect()
-                 << "(图片" << pixmap.width() << "x" << pixmap.height()
-                 << "+ 边距" << margin << ")";
-    } else {
-        // 清除背景图片时同时清除边界约束
-        m_boundaryConstraint = QRectF();
-        setSceneRect(m_defaultSceneRect);  // 无背景时恢复默认场景大小
-        emit boundaryConstraintChanged(m_boundaryConstraint);
-        qDebug() << "[Scene] 清除背景图片，恢复默认场景:" << m_defaultSceneRect;
-    }
+    // 不再扩展 sceneRect，场景大小始终保持为 defaultSceneRect（业务边界）
+    // 视口拖拽范围由 CustomGraphicsView::constrainViewport() 统一约束
 
     invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
 }
@@ -288,7 +253,7 @@ void CustomGraphicsScene::clearBackgroundPixmap()
              << "默认场景:" << m_defaultSceneRect;
     m_backgroundPixmap = QPixmap();
     m_boundaryConstraint = QRectF();
-    setSceneRect(m_defaultSceneRect);  // 清除背景时恢复默认场景大小
+    // sceneRect 始终保持为 defaultSceneRect，无需恢复
     invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
 }
 

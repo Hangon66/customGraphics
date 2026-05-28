@@ -163,6 +163,32 @@ public:
      */
     void pushCommand(QUndoCommand *command);
 
+    /**
+     * @brief 约束视口可见区域，确保不超出场景边界。
+     *
+     * 根据当前 sceneRect（X: 0~4500, Y: 0~3500）计算视口在场景坐标下的
+     * 可见范围，通过 clamp 滚动条值保证视口不会显示场景之外的区域。
+     * 在平移（PanHandler）和缩放（ZoomHandler）操作后调用。
+     */
+    void constrainViewport();
+
+    /**
+     * @brief 设置标尺宽度，用于视口约束时扣除标尺占用空间。
+     *
+     * 标尺覆盖在视口左侧和底部，约束计算时需扣除这部分像素，
+     * 否则板材边缘可能被标尺遮挡。
+     *
+     * @param width 标尺宽度（像素），默认 0 表示无标尺。
+     */
+    void setRulerWidth(int width);
+
+    /**
+     * @brief 获取当前标尺宽度设置。
+     *
+     * @return 标尺宽度（像素）。
+     */
+    int rulerWidth() const;
+
 signals:
     /**
      * @brief 视口可见区域变化信号。
@@ -183,6 +209,13 @@ protected:
      * @param event 鼠标按下事件对象。
      */
     void mousePressEvent(QMouseEvent *event) override;
+    
+        /**
+         * @brief 重写鼠标双击事件，按优先级分发给交互处理器。
+         *
+         * @param event 鼠标双击事件对象。
+         */
+        void mouseDoubleClickEvent(QMouseEvent *event) override;
 
     /**
      * @brief 处理鼠标移动事件并分发给 Handler。
@@ -287,6 +320,11 @@ private:
      * @brief 撤销栈，用于管理撤销/重做操作。
      */
     QUndoStack *m_undoStack;
+
+    /**
+     * @brief 标尺宽度（像素），用于视口约束时扣除标尺占用空间。
+     */
+    int m_rulerWidth = 0;
 };
 
 #endif // CUSTOMGRAPHICSVIEW_H

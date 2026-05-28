@@ -18,6 +18,7 @@ class BackgroundHandler;
 class RulerHandler;
 class GuideLineHandler;
 class DrawHandler;
+class SimulationHandler;
 class PropertyPanel;
 class MinimapWidget;
 class QGraphicsItem;
@@ -63,6 +64,15 @@ public:
     CustomGraphicsScene* scene() const { return m_scene; }
 
     /**
+     * @brief 获取刀路模拟处理器实例。
+     *
+     * 外部可通过此方法获取 SimulationHandler，调用 loadPath() / startSimulation() 等方法。
+     *
+     * @return SimulationHandler 指针；未注册时返回 nullptr。
+     */
+    SimulationHandler* simulationHandler() const { return m_simulationHandler; }
+
+    /**
      * @brief 获取缩略图导航组件。
      *
      * 外部窗口可通过此方法获取缩略图，调用 setParent() 嵌入到外部窗口中显示。
@@ -85,6 +95,34 @@ public:
      * @return true 属性面板可见；false 属性面板隐藏。
      */
     bool isPropertyPanelVisible() const;
+
+    /**
+     * @brief 设置右边栏（属性面板 + 缩略图整体容器）是否可见。
+     *
+     * @param visible true 显示右边栏；false 隐藏右边栏。
+     */
+    void setRightSidebarVisible(bool visible);
+
+    /**
+     * @brief 获取右边栏是否可见。
+     *
+     * @return true 右边栏可见；false 右边栏隐藏。
+     */
+    bool isRightSidebarVisible() const;
+
+    /**
+     * @brief 设置缩略图导航组件是否可见。
+     *
+     * @param visible true 显示缩略图；false 隐藏缩略图。
+     */
+    void setMinimapVisible(bool visible);
+
+    /**
+     * @brief 获取缩略图是否可见。
+     *
+     * @return true 缩略图可见；false 缩略图隐藏。
+     */
+    bool isMinimapVisible() const;
 
     // ========== 模式与操作公共接口 ==========
 
@@ -320,6 +358,11 @@ private:
     DrawHandler *m_drawHandler;
 
     /**
+     * @brief 刀路模拟处理器。
+     */
+    SimulationHandler *m_simulationHandler;
+
+    /**
      * @brief 模式切换按钮。
      */
     QPushButton *m_modeButton;
@@ -353,6 +396,11 @@ private:
      * @brief 缩略图导航组件。
      */
     MinimapWidget *m_minimapWidget;
+
+    /**
+     * @brief 右边栏容器（包含属性面板和缩略图）。
+     */
+    QWidget *m_rightSidebar;
 
     /**
      * @brief 当前选中的辅助线索引，-1 表示未选中。

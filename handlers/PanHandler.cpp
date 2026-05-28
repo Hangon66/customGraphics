@@ -1,4 +1,5 @@
 #include "PanHandler.h"
+#include "../view/CustomGraphicsView.h"
 
 #include <QGraphicsView>
 #include <QMouseEvent>
@@ -35,6 +36,11 @@ bool PanHandler::handleMouseMove(QGraphicsView *view, QMouseEvent *event)
         view->horizontalScrollBar()->value() - delta.x());
     view->verticalScrollBar()->setValue(
         view->verticalScrollBar()->value() - delta.y());
+
+    // 平移后约束视口，确保可见区域不超出场景边界
+    if (auto *customView = qobject_cast<CustomGraphicsView *>(view)) {
+        customView->constrainViewport();
+    }
 
     return true;
 }

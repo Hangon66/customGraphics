@@ -3,6 +3,8 @@
 
 #include "IInteractionHandler.h"
 
+#include <QRectF>
+
 /**
  * @brief 鼠标滚轮缩放交互处理器。
  *
@@ -93,6 +95,17 @@ public:
      * @param enabled true 以鼠标位置为中心缩放；false 以视图中心缩放。
      */
     void setAnchorUnderMouse(bool enabled);
+
+    /**
+     * @brief 根据约束矩形动态计算并设置最小缩放比例。
+     *
+     * 确保视口在任何缩放级别下的可见场景范围不超过约束矩形尺寸。
+     * 计算公式：minScale = max(viewportWidth / constraintWidth, viewportHeight / constraintHeight)
+     *
+     * @param view 当前视图实例，用于获取视口尺寸。
+     * @param constraintRect 业务约束矩形（如 4500x3500 场景范围）。
+     */
+    void setMinScaleFromConstraint(QGraphicsView *view, const QRectF &constraintRect);
 
 private:
     /**

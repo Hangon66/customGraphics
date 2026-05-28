@@ -89,6 +89,15 @@ void BoardLoadHandler::setBoardData(const BoardData &data)
     // 设置场景Y轴方向为翻转（上正下负坐标系）
     if (m_scene) {
         m_scene->setYAxisDirection(YAxisDirection::Inverted);
+        
+        // 显式设置边界约束（基于板材物理尺寸，而非背景图片尺寸）
+        // 限制区域尺寸：板材物理尺寸（毫米）直接映射到场景坐标（1px=1mm）
+        // 由于使用Y轴翻转，限制区域在Y的负值区域：(0, -wide) 到 (length, 0)
+        QRectF boardBoundary(0, -data.wide, data.length, data.wide);
+        m_scene->setBoundaryConstraint(boardBoundary);
+        
+        qDebug() << "[BoardLoadHandler] 设置限制区域:" << boardBoundary
+                 << "板材物理尺寸:" << m_boardSizeMM << "mm";
     }
 
     // 加载背景图片

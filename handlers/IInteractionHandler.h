@@ -52,6 +52,15 @@ public:
     virtual bool handleMouseRelease(QGraphicsView *view, QMouseEvent *event) = 0;
 
     /**
+     * @brief 处理鼠标双击事件。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标双击事件对象。
+     * @return true 表示事件已被消费；false 表示未处理。
+     */
+    virtual bool handleMouseDoubleClick(QGraphicsView *view, QMouseEvent *event) = 0;
+
+    /**
      * @brief 处理鼠标滚轮事件。
      *
      * @param view 产生事件的 QGraphicsView 实例。
@@ -175,6 +184,20 @@ public:
      * @return 始终返回 false。
      */
     bool handleMouseRelease(QGraphicsView *view, QMouseEvent *event) override
+    {
+        Q_UNUSED(view)
+        Q_UNUSED(event)
+        return false;
+    }
+
+    /**
+     * @brief 处理鼠标双击事件，默认不消费。
+     *
+     * @param view 产生事件的 QGraphicsView 实例。
+     * @param event 鼠标双击事件对象。
+     * @return 始终返回 false。
+     */
+    bool handleMouseDoubleClick(QGraphicsView *view, QMouseEvent *event) override
     {
         Q_UNUSED(view)
         Q_UNUSED(event)

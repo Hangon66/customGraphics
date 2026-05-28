@@ -14,6 +14,8 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QUndoStack>
+#include <QScrollBar>
+#include <QDebug>
 #include <algorithm>
 
 CustomGraphicsView::CustomGraphicsView(QWidget *parent)
@@ -152,6 +154,81 @@ void CustomGraphicsView::pushCommand(QUndoCommand *command)
     }
 }
 
+void CustomGraphicsView::setRulerWidth(int width)
+{
+    m_rulerWidth = width;
+}
+
+int CustomGraphicsView::rulerWidth() const
+{
+    return m_rulerWidth;
+}
+
+void CustomGraphicsView::constrainViewport()
+{
+    if (!scene()) {
+        return;
+    }
+
+    // 使用 defaultSceneRect（业务边界），而非 sceneRect（可能被背景图扩展）
+    auto *customScene = qobject_cast<CustomGraphicsScene *>(scene());
+    QRectF constraintRect = customScene ? customScene->defaultSceneRect() : scene()->sceneRect();
+
+    QScrollBar *hsb = horizontalScrollBar();
+    QScrollBar *vsb = verticalScrollBar();
+
+    // 当前缩放比例（transform 对角线元素）
+    qreal scale = transform().m11();
+    if (scale <= 0) {
+        return;
+    }
+
+    // 视口在场景坐标系下的可见宽高
+    // 水平：左侧有标尺需偏移最小位置，但右侧无标尺用完整宽度
+    // 垂直：底部有标尺需扣除，但顶部无标尺不扣
+    qreal viewportSceneW = viewport()->width() / scale;
+    qreal viewportSceneH = (viewport()->height() - m_rulerWidth) / scale;
+
+    // 水平方向约束
+    // 滚动条值是像素坐标（= 场景坐标 × scale），需将约束边界转换到像素坐标
+    // 左侧标尺占用 m_rulerWidth 像素，板材左边缘需从标尺右侧开始
+    {
+        qreal cLeft  = constraintRect.left();
+        qreal cRight = constraintRect.left() + constraintRect.width();
+
+        qreal pxMinLeft = cLeft * scale - m_rulerWidth;
+        qreal pxMaxLeft = (cRight - viewportSceneW) * scale;
+
+        // 确保滚动条最小值支持偏移
+        if (hsb->minimum() > qRound(pxMinLeft)) {
+            hsb->setMinimum(qRound(pxMinLeft));
+        }
+
+        qreal leftEdge = static_cast<qreal>(hsb->value());
+        qreal clamped  = qBound(pxMinLeft, leftEdge, pxMaxLeft);
+        hsb->setValue(qRound(clamped));
+    }
+
+    // 垂直方向约束
+    // 底部标尺占用 m_rulerWidth 像素，板材底部需在标尺上沿以上
+    {
+        qreal cTop    = constraintRect.top();
+        qreal cBottom = constraintRect.top() + constraintRect.height();
+
+        qreal pxMinTop = cTop * scale;
+        qreal pxMaxTop = cBottom * scale - viewport()->height() + m_rulerWidth;
+
+        // 确保滚动条最大值支持偏移
+        if (vsb->maximum() < qRound(pxMaxTop)) {
+            vsb->setMaximum(qRound(pxMaxTop));
+        }
+
+        qreal topEdge = static_cast<qreal>(vsb->value());
+        qreal clamped = qBound(pxMinTop, topEdge, pxMaxTop);
+        vsb->setValue(qRound(clamped));
+    }
+}
+
 void CustomGraphicsView::ensureHandlersSorted()
 {
     if (m_handlersDirty) {
@@ -179,6 +256,23 @@ void CustomGraphicsView::mousePressEvent(QMouseEvent *event)
     }
 
     QGraphicsView::mousePressEvent(event);
+}
+
+void CustomGraphicsView::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    ensureHandlersSorted();
+
+    for (IInteractionHandler *handler : m_handlers) {
+        if (!handler->isEnabled()) {
+            continue;
+        }
+        if (handler->handleMouseDoubleClick(this, event)) {
+            event->accept();
+            return;
+        }
+    }
+
+    QGraphicsView::mouseDoubleClickEvent(event);
 }
 
 void CustomGraphicsView::mouseMoveEvent(QMouseEvent *event)

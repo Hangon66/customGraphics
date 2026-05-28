@@ -268,6 +268,16 @@ public:
     void setDefaultSceneRect(const QRectF &rect);
 
     /**
+     * @brief 获取默认场景矩形。
+     *
+     * 返回场景初始化时设定的默认矩形范围（如 4500×3500），
+     * 不受背景图片加载后 sceneRect 扩展的影响。
+     *
+     * @return 默认场景矩形。
+     */
+    QRectF defaultSceneRect() const;
+
+    /**
      * @brief 设置背景图片。
      *
      * 图片将作为场景背景绘制，并自动设置边界约束为图片大小。

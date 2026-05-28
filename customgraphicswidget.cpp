@@ -8,6 +8,7 @@
 #include "handlers/GuideLineHandler.h"
 #include "handlers/DrawHandler.h"
 #include "handlers/CollisionHandler.h"
+#include "handlers/SimulationHandler.h"
 #include "commands/ShapeCommands.h"
 #include "view/PropertyPanel.h"
 #include "view/MinimapWidget.h"
@@ -37,12 +38,14 @@ CustomGraphicsWidget::CustomGraphicsWidget(QWidget *parent)
     , m_rulerHandler(nullptr)
     , m_guideLineHandler(nullptr)
     , m_drawHandler(nullptr)
+    , m_simulationHandler(nullptr)
     , m_modeButton(nullptr)
     , m_modeLabel(nullptr)
     , m_undoButton(nullptr)
     , m_redoButton(nullptr)
     , m_toolBar(nullptr)
     , m_propertyPanel(nullptr)
+    , m_rightSidebar(nullptr)
     , m_selectedGuideLineIndex(-1)
 {
     ui->setupUi(this);
@@ -128,6 +131,30 @@ bool CustomGraphicsWidget::isPropertyPanelVisible() const
     return m_propertyPanel ? m_propertyPanel->isVisible() : false;
 }
 
+void CustomGraphicsWidget::setRightSidebarVisible(bool visible)
+{
+    if (m_rightSidebar) {
+        m_rightSidebar->setVisible(visible);
+    }
+}
+
+bool CustomGraphicsWidget::isRightSidebarVisible() const
+{
+    return m_rightSidebar ? m_rightSidebar->isVisible() : false;
+}
+
+void CustomGraphicsWidget::setMinimapVisible(bool visible)
+{
+    if (m_minimapWidget) {
+        m_minimapWidget->setVisible(visible);
+    }
+}
+
+bool CustomGraphicsWidget::isMinimapVisible() const
+{
+    return m_minimapWidget ? m_minimapWidget->isVisible() : false;
+}
+
 void CustomGraphicsWidget::initStoneCuttingScene()
 {
     // 获取石材切割场景配置
@@ -135,11 +162,6 @@ void CustomGraphicsWidget::initStoneCuttingScene()
 
     // 创建场景
     m_scene = new CustomGraphicsScene(this);
-
-    // 设置场景默认尺寸（来自配置，1mm=1px）
-    QRectF defaultRect(0, 0, config.sceneWidthMM, config.sceneHeightMM);
-    m_scene->setSceneRect(defaultRect);
-    m_scene->setDefaultSceneRect(defaultRect);
 
     // 配置碰撞检测：仅启用矩形间碰撞，边距和缩放因子从场景配置读取
     CollisionConfig collisionConfig;
@@ -172,7 +194,23 @@ void CustomGraphicsWidget::initStoneCuttingScene()
             // 设置撤销栈，支持撤销/重做
             m_drawHandler->setUndoStack(m_view->undoStack());
         }
+        else if (auto* simHandler = dynamic_cast<SimulationHandler*>(handler)) {
+            m_simulationHandler = simHandler;
+            m_simulationHandler->setScene(m_scene);
+        }
     }
+
+    // 设置场景默认尺寸（来自配置，1mm=1px）
+    // 上正下负坐标系：Y 轴取反，板材放置在 Y 负值区域
+    // 场景范围：X: 0~4500, Y: -3500~0
+    // 左/下边界各扩展标尺宽度像素，使视口约束能偏移以避开标尺
+    const int rulerWidthPx = m_rulerHandler ? m_rulerHandler->rulerWidth() : 0;
+    QRectF sceneRect(-rulerWidthPx, -config.sceneHeightMM,
+                     config.sceneWidthMM + rulerWidthPx, config.sceneHeightMM + rulerWidthPx);
+    m_scene->setSceneRect(sceneRect);
+    // defaultSceneRect 保持板材业务边界不变（X: 0~4500, Y: -3500~0）
+    m_scene->setDefaultSceneRect(QRectF(0, -config.sceneHeightMM,
+                                        config.sceneWidthMM, config.sceneHeightMM));
 
     // 创建并注册辅助线处理器
     m_guideLineHandler = new GuideLineHandler(80, this);
@@ -299,15 +337,15 @@ void CustomGraphicsWidget::initToolBar()
     contentLayout->addWidget(m_view, 1);
 
     // 属性面板和缩略图已在构造函数中提前创建，此处加入右边栏布局
-    QWidget *rightSidebar = new QWidget();
-    QVBoxLayout *rightLayout = new QVBoxLayout(rightSidebar);
+    m_rightSidebar = new QWidget();
+    QVBoxLayout *rightLayout = new QVBoxLayout(m_rightSidebar);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     rightLayout->addWidget(m_propertyPanel, 1);
     rightLayout->addWidget(m_minimapWidget);
     rightLayout->addStretch();
 
-    contentLayout->addWidget(rightSidebar);
+    contentLayout->addWidget(m_rightSidebar);
 
     mainLayout->addLayout(contentLayout);
 
@@ -711,4 +749,5 @@ void CustomGraphicsWidget::initUI()
     initStoneCuttingScene();
     initToolBar();
     setPropertyPanelVisible(false);
+    setRightSidebarVisible(false);
 }
